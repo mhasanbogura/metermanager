@@ -1657,7 +1657,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.27'} (build ${'526'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.28'} (build ${'529'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
@@ -1696,7 +1696,7 @@ window._settingsSignOut = function() {
 };
 window._settingsDeleteAccount = deleteAccount;
 window._settingsShare = function() {
-  const url = 'https://mahmudulsapp.u.gy/meter-manager';
+  const url = 'https://u2l.ai/meter-manager';
   const msg = 'Check out Meter Manager – A web-based electricity meter management app that helps users monitor and track their DESCO and NESCO prepaid electricity meters in Bangladesh. It provides live meter information, usage statistics, average daily costs, and recharge history all in one convenient place.\n\nDownload: ' + url;
   if (window.NescoBridge && window.NescoBridge.shareText) {
     window.NescoBridge.shareText('Meter Manager', msg);
