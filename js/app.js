@@ -1654,7 +1654,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.32'} (build ${'541'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.33'} (build ${'544'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
@@ -1870,13 +1870,7 @@ function showApp() {
   const appEl = document.getElementById('app');
   if (appEl) appEl.style.display = '';
 }
-function hideSplash() {
-  const splash = document.getElementById('splash-screen');
-  if (splash) splash.classList.remove('visible');
-  try {
-    if (window.NescoBridge && typeof window.NescoBridge.hideSplash === 'function') window.NescoBridge.hideSplash();
-  } catch {}
-}
+function hideSplash() {}
 function initAuth() {
   const byId = id => document.getElementById(id);
   const bind = (id, evt, fn) => { const el = byId(id); if (el) el.addEventListener(evt, fn); };
@@ -1954,7 +1948,6 @@ async function googleLogin() {
   } finally { btns.forEach(b => { b.disabled = false; }); _googleAuthInProgress = false; }
 }
 window.onGoogleSignInResult = async function(idToken, email) {
-  hideSplash();
   if (_googleAuthInProgress) return;
   if (currentUser) return;
   _googleAuthInProgress = true;
@@ -2108,21 +2101,16 @@ async function boot() {
       showView('home');
       renderHome();
       hideSplash();
-      Promise.all([loadFromCloud(), loadSettingsFromCloud()])
-        .then(() => {
-          applyTheme();
-          applyLang();
-          state.meters.forEach(m => { m.loading = true; m.err = null; });
-          renderHome();
-          return refreshAllMeters();
-        })
-        .then(() => renderHome())
-        .catch(() => {});
+      await Promise.all([loadFromCloud(), loadSettingsFromCloud()]);
+      applyTheme();
+      applyLang();
+      state.meters.forEach(m => { m.loading = true; m.err = null; });
+      renderHome();
+      refreshAllMeters().then(() => renderHome());
       scheduleAlerts();
       scheduleAutoRefresh();
     } else {
       currentUser = null;
-      hideSplash();
       showAuthScreen('auth-screen');
     }
   });

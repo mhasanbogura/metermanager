@@ -37,7 +37,6 @@ import java.util.regex.Pattern;
 
 public class MainActivity extends Activity {
     private WebView webView;
-    private View appSplash;
     private static final String TAG = "MeterManager";
     private static final String WEB_URL = "https://mhasanbogura.github.io/prepaid-meter-manager/";
     private static final String PANEL = "https://customer.nesco.gov.bd/pre/panel";
@@ -68,9 +67,6 @@ public class MainActivity extends Activity {
         setContentView(R.layout.activity_main);
 
         webView = findViewById(R.id.webView);
-        appSplash = findViewById(R.id.splash);
-        // Watchdog: never trap the user on splash. Web splash underneath stays in charge.
-        mainHandler.postDelayed(() -> hideAppSplash(), 30000);
 
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
@@ -602,24 +598,6 @@ public class MainActivity extends Activity {
         return s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "");
     }
 
-    private void hideAppSplash() {
-        try {
-            if (appSplash == null || appSplash.getVisibility() != View.VISIBLE) return;
-            android.view.animation.AlphaAnimation fadeOut = new android.view.animation.AlphaAnimation(1.0f, 0.0f);
-            fadeOut.setDuration(300);
-            fadeOut.setAnimationListener(new android.view.animation.Animation.AnimationListener() {
-                @Override public void onAnimationStart(android.view.animation.Animation a) {}
-                @Override public void onAnimationRepeat(android.view.animation.Animation a) {}
-                @Override public void onAnimationEnd(android.view.animation.Animation a) {
-                    appSplash.setVisibility(View.GONE);
-                }
-            });
-            appSplash.startAnimation(fadeOut);
-        } catch (Exception e) {
-            Log.e(TAG, "hideAppSplash error", e);
-        }
-    }
-
     private void setStatusBarColorDirect(String colorHex) {
         try {
             Window window = getWindow();
@@ -749,11 +727,6 @@ public class MainActivity extends Activity {
                     startActivityForResult(signInIntent, RC_SIGN_IN);
                 });
             });
-        }
-
-        @JavascriptInterface
-        public void hideSplash() {
-            mainHandler.post(() -> hideAppSplash());
         }
 
         @JavascriptInterface
