@@ -1654,7 +1654,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.31'} (build ${'538'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.32'} (build ${'541'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
@@ -2103,21 +2103,21 @@ async function boot() {
   auth.onAuthStateChanged(async (user) => {
     if (user) {
       currentUser = user;
+      showApp();
       applyLang();
       showView('home');
       renderHome();
-      await Promise.all([loadFromCloud(), loadSettingsFromCloud()]);
-      applyTheme();
-      applyLang();
-      state.meters.forEach(m => { m.loading = true; m.err = null; });
-      renderHome();
-      await Promise.race([
-        refreshAllMeters(),
-        new Promise(r => setTimeout(r, 20000))
-      ]);
-      renderHome();
-      showApp();
       hideSplash();
+      Promise.all([loadFromCloud(), loadSettingsFromCloud()])
+        .then(() => {
+          applyTheme();
+          applyLang();
+          state.meters.forEach(m => { m.loading = true; m.err = null; });
+          renderHome();
+          return refreshAllMeters();
+        })
+        .then(() => renderHome())
+        .catch(() => {});
       scheduleAlerts();
       scheduleAutoRefresh();
     } else {
