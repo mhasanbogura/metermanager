@@ -1657,7 +1657,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.28'} (build ${'529'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.29'} (build ${'532'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
@@ -2096,19 +2096,20 @@ async function boot() {
   initUi();
   initAuth();
   registerSw();
-  try { await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL); } catch {}
-  try { await db.enablePersistence({ synchronizeTabs: true }); } catch {}
   auth.onAuthStateChanged(async (user) => {
     if (user) {
       currentUser = user;
       showApp();
-      await loadFromCloud();
-      await loadSettingsFromCloud();
       applyLang();
       showView('home');
-      state.meters.forEach(m => { m.loading = true; m.err = null; });
       renderHome();
       hideSplash();
+      try { await loadFromCloud(); } catch {}
+      try { await loadSettingsFromCloud(); } catch {}
+      applyTheme();
+      applyLang();
+      state.meters.forEach(m => { m.loading = true; m.err = null; });
+      renderHome();
       refreshAllMeters().then(() => renderHome());
       scheduleAlerts();
       scheduleAutoRefresh();
@@ -2117,6 +2118,8 @@ async function boot() {
       showAuthScreen('auth-screen');
     }
   });
+  try { await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL); } catch {}
+  try { await db.enablePersistence({ synchronizeTabs: true }); } catch {}
   if (window.NescoBridge && typeof window.NescoBridge.getPendingGoogleToken === 'function') {
     const pendingToken = window.NescoBridge.getPendingGoogleToken();
     if (pendingToken && typeof window.onGoogleSignInResult === 'function') {
