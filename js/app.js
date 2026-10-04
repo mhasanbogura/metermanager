@@ -1654,7 +1654,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.30'} (build ${'535'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.31'} (build ${'538'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
@@ -1870,7 +1870,13 @@ function showApp() {
   const appEl = document.getElementById('app');
   if (appEl) appEl.style.display = '';
 }
-function hideSplash() {}
+function hideSplash() {
+  const splash = document.getElementById('splash-screen');
+  if (splash) splash.classList.remove('visible');
+  try {
+    if (window.NescoBridge && typeof window.NescoBridge.hideSplash === 'function') window.NescoBridge.hideSplash();
+  } catch {}
+}
 function initAuth() {
   const byId = id => document.getElementById(id);
   const bind = (id, evt, fn) => { const el = byId(id); if (el) el.addEventListener(evt, fn); };
@@ -1948,6 +1954,7 @@ async function googleLogin() {
   } finally { btns.forEach(b => { b.disabled = false; }); _googleAuthInProgress = false; }
 }
 window.onGoogleSignInResult = async function(idToken, email) {
+  hideSplash();
   if (_googleAuthInProgress) return;
   if (currentUser) return;
   _googleAuthInProgress = true;
@@ -2096,21 +2103,26 @@ async function boot() {
   auth.onAuthStateChanged(async (user) => {
     if (user) {
       currentUser = user;
-      showApp();
       applyLang();
       showView('home');
       renderHome();
-      hideSplash();
       await Promise.all([loadFromCloud(), loadSettingsFromCloud()]);
       applyTheme();
       applyLang();
       state.meters.forEach(m => { m.loading = true; m.err = null; });
       renderHome();
-      refreshAllMeters().then(() => renderHome());
+      await Promise.race([
+        refreshAllMeters(),
+        new Promise(r => setTimeout(r, 20000))
+      ]);
+      renderHome();
+      showApp();
+      hideSplash();
       scheduleAlerts();
       scheduleAutoRefresh();
     } else {
       currentUser = null;
+      hideSplash();
       showAuthScreen('auth-screen');
     }
   });
