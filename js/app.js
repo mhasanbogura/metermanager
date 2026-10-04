@@ -475,7 +475,7 @@ async function refreshMeter(meter, opts = {}) {
       break;
     } catch (e) {
       meter.err = t('err.network');
-      if (t < maxTries) await new Promise(r => setTimeout(r, 2000 * t));
+      if (t < maxTries) await new Promise(r => setTimeout(r, 1000 * t));
     }
   }
   meter.updatedAt = Date.now();
@@ -559,13 +559,10 @@ async function refreshMeterOnce(meter) {
 }
 
 async function refreshAllMeters() {
-  for (const m of state.meters) {
-    m.loading = true;
-    renderHome();
-    await refreshMeter(m, { silent: true });
-    renderHome();
-    await new Promise(r => setTimeout(r, 2000));
-  }
+  state.meters.forEach(m => { m.loading = true; });
+  renderHome();
+  await Promise.all(state.meters.map(m => refreshMeter(m, { silent: true, tries: 2 }).catch(() => {})));
+  renderHome();
 }
 
 /* ================= dialogs ================= */
@@ -1657,7 +1654,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.29'} (build ${'532'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.30'} (build ${'535'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
@@ -2104,8 +2101,7 @@ async function boot() {
       showView('home');
       renderHome();
       hideSplash();
-      try { await loadFromCloud(); } catch {}
-      try { await loadSettingsFromCloud(); } catch {}
+      await Promise.all([loadFromCloud(), loadSettingsFromCloud()]);
       applyTheme();
       applyLang();
       state.meters.forEach(m => { m.loading = true; m.err = null; });
@@ -2118,8 +2114,6 @@ async function boot() {
       showAuthScreen('auth-screen');
     }
   });
-  try { await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL); } catch {}
-  try { await db.enablePersistence({ synchronizeTabs: true }); } catch {}
   if (window.NescoBridge && typeof window.NescoBridge.getPendingGoogleToken === 'function') {
     const pendingToken = window.NescoBridge.getPendingGoogleToken();
     if (pendingToken && typeof window.onGoogleSignInResult === 'function') {
@@ -2131,6 +2125,8 @@ async function boot() {
       }
     }
   }
+  try { await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL); } catch {}
+  try { await db.enablePersistence({ synchronizeTabs: true }); } catch {}
 }
 document.addEventListener('DOMContentLoaded', boot);
 
