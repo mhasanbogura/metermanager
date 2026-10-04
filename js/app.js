@@ -1654,7 +1654,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.33'} (build ${'544'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.34'} (build ${'547'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
@@ -1870,7 +1870,20 @@ function showApp() {
   const appEl = document.getElementById('app');
   if (appEl) appEl.style.display = '';
 }
-function hideSplash() {}
+function hideSplash(immediate) {
+  const elapsed = (typeof performance !== 'undefined') ? performance.now() : 2000;
+  const wait = immediate ? 0 : Math.max(0, 2000 - elapsed);
+  setTimeout(() => {
+    const splash = document.getElementById('splash-screen');
+    if (splash && !splash.classList.contains('hidden')) {
+      splash.classList.add('hidden');
+      setTimeout(() => splash.remove(), 400);
+    }
+    try {
+      if (window.NescoBridge && typeof window.NescoBridge.hideSplash === 'function') window.NescoBridge.hideSplash();
+    } catch {}
+  }, wait);
+}
 function initAuth() {
   const byId = id => document.getElementById(id);
   const bind = (id, evt, fn) => { const el = byId(id); if (el) el.addEventListener(evt, fn); };
@@ -1948,6 +1961,7 @@ async function googleLogin() {
   } finally { btns.forEach(b => { b.disabled = false; }); _googleAuthInProgress = false; }
 }
 window.onGoogleSignInResult = async function(idToken, email) {
+  hideSplash(true);
   if (_googleAuthInProgress) return;
   if (currentUser) return;
   _googleAuthInProgress = true;
@@ -2111,6 +2125,7 @@ async function boot() {
       scheduleAutoRefresh();
     } else {
       currentUser = null;
+      hideSplash();
       showAuthScreen('auth-screen');
     }
   });
