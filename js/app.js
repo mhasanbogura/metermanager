@@ -1654,7 +1654,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.34'} (build ${'547'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.35'} (build ${'550'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
@@ -1871,8 +1871,8 @@ function showApp() {
   if (appEl) appEl.style.display = '';
 }
 function hideSplash(immediate) {
-  const elapsed = (typeof performance !== 'undefined') ? performance.now() : 2000;
-  const wait = immediate ? 0 : Math.max(0, 2000 - elapsed);
+  const elapsed = (typeof performance !== 'undefined') ? performance.now() : 1000;
+  const wait = immediate ? 0 : Math.max(0, 1000 - elapsed);
   setTimeout(() => {
     const splash = document.getElementById('splash-screen');
     if (splash && !splash.classList.contains('hidden')) {
