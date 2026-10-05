@@ -702,6 +702,29 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public void nescoLookupAsync(final String cust, final String cbId) {
+            new Thread(() -> {
+                String result;
+                try {
+                    result = nescoLookupImpl(cust);
+                } catch (Exception e) {
+                    result = "{\"ok\":false,\"error\":\"lookup failed\"}";
+                }
+                final String escaped = result
+                    .replace("\\", "\\\\")
+                    .replace("'", "\\'")
+                    .replace("\n", "\\n")
+                    .replace("\r", "");
+                mainHandler.post(() -> {
+                    webView.evaluateJavascript(
+                        "(function(){if(typeof window.__nescoResult==='function'){window.__nescoResult('"
+                            + cbId + "','" + escaped + "');}})()",
+                        null);
+                });
+            }).start();
+        }
+
+        @JavascriptInterface
         public String clipboardRead() {
             android.content.ClipboardManager cm = (android.content.ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
             android.content.ClipData clip = cm.getPrimaryClip();

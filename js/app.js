@@ -838,6 +838,12 @@ async function doAddMeter(prov) {
   }
 }
 
+let __nescoCbSeq = 0;
+const __nescoCbs = {};
+window.__nescoResult = function(id, json) {
+  const cb = __nescoCbs[id];
+  if (cb) { delete __nescoCbs[id]; cb(json); }
+};
 async function nescoQuery(custNo) {
   if (isDemo()) {
     return {
@@ -855,6 +861,25 @@ async function nescoQuery(custNo) {
         { orderId: '1242636780101181442', rechargeDate: '25-MAY-2026 7:05 PM', rechargeAmount: 300, energyUnit: 30.1, vat: 14.29, method: 'ROCKET' }
       ]
     };
+  }
+  if (window.NescoBridge && typeof window.NescoBridge.nescoLookupAsync === 'function') {
+    return new Promise((resolve) => {
+      const id = 'n' + (++__nescoCbSeq);
+      __nescoCbs[id] = (json) => {
+        try { resolve(JSON.parse(json)); }
+        catch (e) { resolve({ ok: false, error: 'parse error' }); }
+      };
+      try {
+        window.NescoBridge.nescoLookupAsync(custNo, id);
+      } catch (e) {
+        delete __nescoCbs[id];
+        resolve({ ok: false, error: e.message });
+        return;
+      }
+      setTimeout(() => {
+        if (__nescoCbs[id]) { delete __nescoCbs[id]; resolve({ ok: false, error: 'timeout' }); }
+      }, 60000);
+    });
   }
   if (window.NescoBridge && typeof window.NescoBridge.nescoLookupSync === 'function') {
     try {
@@ -1654,7 +1679,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.35'} (build ${'550'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.36'} (build ${'553'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
