@@ -334,9 +334,9 @@ function fmtDate(s) {
 function fmtDateTime(s) {
   if (!s) return '';
   const d = new Date(s); if (isNaN(d)) return String(s);
-  const loc = langs === I18N.bn ? 'bn-BD' : 'en-GB';
-  return d.toLocaleDateString(loc, { day: 'numeric', month: 'short', year: 'numeric' }) + ' ' +
-    d.toLocaleTimeString(loc, { hour: 'numeric', minute: '2-digit' });
+  const loc = langs === I18N.bn ? 'bn-BD' : 'en-US';
+  return d.toLocaleDateString(loc, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) +
+    ', ' + d.toLocaleTimeString(loc, { hour: 'numeric', minute: '2-digit', second: '2-digit' });
 }
 function timeAgo(ts) {
   if (!ts) return t('home.updated_never');
@@ -1009,7 +1009,7 @@ function renderNescoHistory(m) {
           const st = r.rechargeStatus || '';
           const stLow = st.toLowerCase();
           const stColor = stLow.includes('success') ? 'var(--success)' : (stLow.includes('fail') ? '#ff6b6b' : 'inherit');
-          return `<tr><td>${esc(r.rechargeDate || '')}</td><td style="white-space:normal;word-break:break-all;max-width:140px">${fmtToken(r.tokenNo || r.orderId || '')}</td><td style="font-weight:600">${fmtBdt(total)}</td><td>${fmtBdt(ea)}</td><td>${fmtUnits(r.energyUnit)}</td><td>${fmtBdt(Number(r.meterRent) || 0)}</td><td>${fmtBdt(Number(r.demandCharge) || 0)}</td><td>${fmtBdt(Number(r.vat) || 0)}</td><td>${fmtBdt(Number(r.subsidy) || 0)}</td><td style="color:${stColor};font-weight:600">${esc(st || '–')}</td></tr>`;
+          return `<tr><td>${esc(fmtDateTime(r.rechargeDate))}</td><td style="white-space:normal;word-break:break-all;max-width:140px">${fmtToken(r.tokenNo || r.orderId || '')}</td><td style="font-weight:600">${fmtBdt(total)}</td><td>${fmtBdt(ea)}</td><td>${fmtUnits(r.energyUnit)}</td><td>${fmtBdt(Number(r.meterRent) || 0)}</td><td>${fmtBdt(Number(r.demandCharge) || 0)}</td><td>${fmtBdt(Number(r.vat) || 0)}</td><td>${fmtBdt(Number(r.subsidy) || 0)}</td><td style="color:${stColor};font-weight:600">${esc(st || '–')}</td></tr>`;
         }).join('')}
       </tbody></table></div>`
       : `<p class="muted">${esc(t('detail.recharge_empty'))}</p>`}
