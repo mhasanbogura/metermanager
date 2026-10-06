@@ -15,7 +15,7 @@ const I18N = {
     'home.reorder': 'Drag to reorder', 'home.avg_day': 'Average Daily Cost: {v}',
     'home.desc': 'Your prepaid meter balances and usage, pulled live from DESCO and NESCO Server.',
     'home.last_updated': 'Updated {t}', 'home.updated_never': 'Not updated yet', 'home.low': 'Low balance',
-    'home.refreshing': 'Updating…', 'home.max': 'Maximum 5 meters allowed.',
+    'home.refreshing': 'Updating…', 'home.pull_refresh': 'Pull to refresh', 'home.max': 'Maximum 5 meters allowed.',
     'meter.desco': 'DESCO', 'meter.nesco': 'NESCO',
     'meter.remove_q': 'Remove this meter?', 'meter.remove_text': 'The meter will be removed from this device only.',
     'btn.cancel': 'Cancel', 'btn.remove': 'Remove', 'btn.add': 'Add meter', 'btn.close': 'Close', 'btn.ok': 'OK', 'btn.edit': 'Edit',
@@ -113,7 +113,7 @@ const I18N = {
     'home.reorder': 'সাজাতে টেনে আনুন', 'home.avg_day': 'প্রতিদিন গড় খরচ: {v}',
     'home.desc': 'ডেসকো ও নেসকো সার্ভার থেকে সরাসরি আনা আপনার প্রিপেইড মিটারের ব্যালেন্স ও ব্যবহার।',
     'home.last_updated': 'আপডেট হয়েছে {t}', 'home.updated_never': 'এখনো আপডেট হয়নি', 'home.low': 'ব্যালেন্স কম',
-    'home.refreshing': 'আপডেট হচ্ছে…', 'home.max': 'সর্বোচ্চ ৫টি মিটার যোগ করা যাবে।',
+    'home.refreshing': 'আপডেট হচ্ছে…', 'home.pull_refresh': 'রিফ্রেশ করতে টানুন', 'home.max': 'সর্বোচ্চ ৫টি মিটার যোগ করা যাবে।',
     'meter.desco': 'ডেসকো', 'meter.nesco': 'নেসকো',
     'meter.remove_q': 'এই মিটারটি মুছে ফেলবেন?', 'meter.remove_text': 'মিটারটি শুধু এই ডিভাইস থেকে সরানো হবে।',
     'btn.cancel': 'বাতিল', 'btn.remove': 'মুছে ফেলুন', 'btn.add': 'মিটার যোগ করুন', 'btn.close': 'বন্ধ', 'btn.ok': 'ঠিক আছে', 'btn.edit': 'সম্পাদনা',
@@ -2194,13 +2194,29 @@ document.addEventListener('DOMContentLoaded', boot);
   let startY = 0, pulling = false;
   const home = document.getElementById('view-home');
   if (!home) return;
+  const pill = document.createElement('div');
+  pill.className = 'pull-refresh-indicator';
+  pill.innerHTML = '<svg class="pull-refresh-icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.65 6.35A7.95 7.95 0 0 0 12 4a8 8 0 1 0 7.73 10h-2.08A6 6 0 1 1 12 6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg><span class="pull-refresh-text"></span>';
+  document.body.appendChild(pill);
+  const label = pill.querySelector('.pull-refresh-text');
+  const show = y => { pill.style.transform = 'translateX(-50%) translateY(' + y + 'px)'; };
+  const hide = () => { pill.classList.remove('spinning'); show(-70); };
   home.addEventListener('touchstart', e => {
     if (home.scrollTop === 0) { startY = e.touches[0].clientY; pulling = true; }
   }, { passive: true });
   home.addEventListener('touchmove', e => {
     if (!pulling) return;
     const dy = e.touches[0].clientY - startY;
-    if (dy > 80) { pulling = false; toast(t('home.refreshing')); refreshAllMeters().then(() => renderHome()); }
+    if (dy <= 0) { hide(); return; }
+    label.textContent = t('home.pull_refresh');
+    show(Math.min(dy * 0.45, 44) - 62);
+    if (dy > 80) {
+      pulling = false;
+      label.textContent = t('home.refreshing');
+      pill.classList.add('spinning');
+      show(14);
+      refreshAllMeters().then(() => { renderHome(); hide(); });
+    }
   }, { passive: true });
-  home.addEventListener('touchend', () => { pulling = false; }, { passive: true });
+  home.addEventListener('touchend', () => { if (pulling) { pulling = false; hide(); } }, { passive: true });
 })();

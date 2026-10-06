@@ -234,6 +234,20 @@ table.list.hist th, table.list.hist td { border: 1px solid var(--border); text-a
 table.list.hist tr:last-child td { border-bottom: 1px solid var(--border); }
 .tbl-scroll { overflow-x: auto; }
 
+/* ---------- pull-to-refresh pill ---------- */
+.pull-refresh-indicator {
+  position: fixed; top: calc(6px + env(safe-area-inset-top, 0px)); left: 50%; z-index: 950;
+  transform: translateX(-50%) translateY(-70px);
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 16px; border-radius: 22px;
+  background: var(--surface); color: var(--text);
+  border: 1px solid var(--border); box-shadow: var(--shadow-lg);
+  font-size: 13px; font-weight: 600; white-space: nowrap;
+  transition: transform .12s ease-out; pointer-events: none;
+}
+.pull-refresh-indicator .pull-refresh-icon { width: 16px; height: 16px; color: var(--primary); }
+.pull-refresh-indicator.spinning .pull-refresh-icon { animation: spin 1s linear infinite; }
+
 /* ---------- states ---------- */
 .hero-card { text-align: center; padding: 28px 20px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
 .hero-logo { border-radius: 18px; box-shadow: var(--shadow); }
