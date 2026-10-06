@@ -400,7 +400,7 @@ function mockResponse(path) {
     for (let i = 1; i <= 8; i++) {
       const d = new Date(); d.setDate(d.getDate() - i * 24);
       const total = [500, 1000, 500, 2000, 1000, 500, 1000, 500][i - 1];
-      data.push({ orderID: 'PP' + (100000 + i), meterNo: '123456789012', rechargeDate: d.toISOString().slice(0, 10), totalAmount: total, energyAmount: Math.round(total / 1.15), VAT: Math.round(total * 0.05), rebate: i % 3 === 0 ? 25 : 0, tokenNo: 'TOK' + (200000 + i), chargeItems: [{ tokenNo: 'TOK' + (200000 + i) }] });
+      data.push({ orderID: 'PP' + (100000 + i), meterNo: '123456789012', rechargeDate: d.toISOString().slice(0, 10), totalAmount: total, energyAmount: Math.round(total / 1.15), VAT: Math.round(total * 0.05), rebate: i % 3 === 0 ? 25 : 0, tokenNo: 'TOK' + (200000 + i), chargeItems: [{ tokenNo: 'TOK' + (200000 + i) }], status: 'Successful' });
     }
     return { code: 200, desc: 'OK', data };
   }
@@ -995,11 +995,14 @@ function renderNescoHistory(m) {
   return `<section class="card">
     <h3>${esc(t('detail.recharge_history'))}</h3>
     ${rows.length
-      ? `<div class="tbl-scroll"><table class="list"><thead><tr><th>${esc(t('detail.date'))}</th><th>${esc(t('detail.token'))}</th><th style="text-align:center">${esc(t('detail.total'))}</th><th style="text-align:center">${esc(t('detail.energy_amount'))}</th><th style="text-align:center">${esc(t('detail.energy_kwh'))}</th><th style="text-align:center">${esc(t('detail.vat_other'))}</th></tr></thead><tbody>
+      ? `<div class="tbl-scroll"><table class="list hist"><thead><tr><th>${esc(t('detail.date'))}</th><th>${esc(t('detail.token'))}</th><th>${esc(t('detail.vat_other'))}</th><th>${esc(t('detail.energy_amount'))}</th><th>${esc(t('detail.total'))}</th><th>${esc(t('detail.energy_kwh'))}</th><th>${esc(t('detail.status'))}</th></tr></thead><tbody>
         ${rows.map(r => {
           const total = Number(r.rechargeAmount) || 0;
           const ea = Number(r.electricityAmount) || 0;
-          return `<tr><td>${esc(r.rechargeDate || '')}</td><td style="color:var(--text-2);white-space:normal;word-break:break-all;max-width:140px">${fmtToken(r.tokenNo || r.orderId || '')}</td><td style="text-align:right;font-weight:600">${fmtBdt(total)}</td><td style="text-align:right">${fmtBdt(ea)}</td><td style="text-align:right">${fmtUnits(r.energyUnit)}</td><td style="text-align:right">${fmtBdt(total - ea)}</td></tr>`;
+          const st = r.rechargeStatus || '';
+          const stLow = st.toLowerCase();
+          const stColor = stLow.includes('success') ? 'var(--success)' : (stLow.includes('fail') ? '#ff6b6b' : 'inherit');
+          return `<tr><td>${esc(r.rechargeDate || '')}</td><td style="color:var(--text-2);white-space:normal;word-break:break-all;max-width:140px">${fmtToken(r.tokenNo || r.orderId || '')}</td><td>${fmtBdt(total - ea)}</td><td>${fmtBdt(ea)}</td><td style="font-weight:600">${fmtBdt(total)}</td><td>${fmtUnits(r.energyUnit)}</td><td style="color:${stColor};font-weight:600">${esc(st || '–')}</td></tr>`;
         }).join('')}
       </tbody></table></div>`
       : `<p class="muted">${esc(t('detail.recharge_empty'))}</p>`}
@@ -1309,13 +1312,16 @@ function renderHistory(hist) {
   return `<section class="card">
     <h3>${esc(t('detail.recharge_history'))}</h3>
     ${rows.length
-      ? `<div class="tbl-scroll"><table class="list"><thead><tr><th>${esc(t('detail.date'))}</th><th>${esc(t('detail.token'))}</th><th style="text-align:center">${esc(t('detail.total'))}</th><th style="text-align:center">${esc(t('detail.energy_amount'))}</th><th style="text-align:center">${esc(t('detail.energy_kwh'))}</th><th style="text-align:center">${esc(t('detail.vat_other'))}</th></tr></thead><tbody>
+      ? `<div class="tbl-scroll"><table class="list hist"><thead><tr><th>${esc(t('detail.date'))}</th><th>${esc(t('detail.token'))}</th><th>${esc(t('detail.vat_other'))}</th><th>${esc(t('detail.energy_amount'))}</th><th>${esc(t('detail.total'))}</th><th>${esc(t('detail.energy_kwh'))}</th><th>${esc(t('detail.status'))}</th></tr></thead><tbody>
         ${rows.map(r => {
           const total = Number(r.totalAmount) || 0;
           const ea = Number(r.energyAmount) || 0;
           const tokens = (r.chargeItems || []).map(c => c.tokenNo || c.token || '').filter(Boolean).join(', ');
           const tokenDisplay = tokens || r.tokenNo || r.token || r.orderID || '';
-          return `<tr><td>${esc(fmtDate(r.rechargeDate))}</td><td style="color:var(--text-2);white-space:normal;word-break:break-all;max-width:140px">${fmtToken(tokenDisplay)}</td><td style="text-align:right;font-weight:600">${fmtBdt(total)}</td><td style="text-align:right">${fmtBdt(ea)}</td><td style="text-align:right">${fmtUnits(descoTakaToKwh(ea))}</td><td style="text-align:right">${fmtBdt(total - ea)}</td></tr>`;
+          const st = r.status || r.rechargeStatus || '';
+          const stLow = String(st).toLowerCase();
+          const stColor = stLow.includes('success') ? 'var(--success)' : (stLow.includes('fail') ? '#ff6b6b' : 'inherit');
+          return `<tr><td>${esc(fmtDate(r.rechargeDate))}</td><td style="color:var(--text-2);white-space:normal;word-break:break-all;max-width:140px">${fmtToken(tokenDisplay)}</td><td>${fmtBdt(total - ea)}</td><td>${fmtBdt(ea)}</td><td style="font-weight:600">${fmtBdt(total)}</td><td>${fmtUnits(descoTakaToKwh(ea))}</td><td style="color:${stColor};font-weight:600">${esc(st || '–')}</td></tr>`;
         }).join('')}
       </tbody></table></div>`
       : `<p class="muted">${esc(t('detail.recharge_empty'))}</p>`}
@@ -1679,7 +1685,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.36'} (build ${'553'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.37'} (build ${'556'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {

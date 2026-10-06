@@ -439,6 +439,23 @@ public class MainActivity extends Activity {
                 String val = attr(tag, "data-" + keys[k]);
                 hist.append("\"").append(outKeys[k]).append("\":\"").append(esc(val)).append("\"");
             }
+            // Remote recharge status lives in the last <td> of the row (Success/Failed)
+            String rechargeStatus = "";
+            try {
+                int cellStart = rowMat.end();
+                int rowEnd = html.indexOf("</tr>", cellStart);
+                if (rowEnd < 0 || rowEnd - cellStart > 20000) rowEnd = Math.min(cellStart + 20000, html.length());
+                Matcher tdMat = Pattern.compile("<td[^>]*>(.*?)</td>", Pattern.CASE_INSENSITIVE | Pattern.DOTALL)
+                    .matcher(html.substring(cellStart, rowEnd));
+                while (tdMat.find()) {
+                    String cell = tdMat.group(1).replaceAll("<[^>]*>", "").replace("&nbsp;", " ").trim();
+                    if (!cell.isEmpty()) rechargeStatus = cell;
+                }
+                if (rechargeStatus.length() > 30) rechargeStatus = "";
+            } catch (Exception se) {
+                rechargeStatus = "";
+            }
+            hist.append(",\"rechargeStatus\":\"").append(esc(rechargeStatus)).append("\"");
             hist.append("}");
             if (firstCustomerName.isEmpty()) firstCustomerName = attr(tag, "data-customername");
             if (firstMeterNo.isEmpty()) firstMeterNo = attr(tag, "data-meterno");
