@@ -1318,7 +1318,7 @@ function renderHistory(hist) {
           const ea = Number(r.energyAmount) || 0;
           const tokens = (r.chargeItems || []).map(c => c.tokenNo || c.token || '').filter(Boolean).join(', ');
           const tokenDisplay = tokens || r.tokenNo || r.token || r.orderID || '';
-          const st = r.status || r.rechargeStatus || '';
+          const st = r.orderStatus || r.status || r.rechargeStatus || '';
           const stLow = String(st).toLowerCase();
           const stColor = stLow.includes('success') ? 'var(--success)' : (stLow.includes('fail') ? '#ff6b6b' : 'inherit');
           return `<tr><td>${esc(fmtDate(r.rechargeDate))}</td><td style="color:var(--text-2);white-space:normal;word-break:break-all;max-width:140px">${fmtToken(tokenDisplay)}</td><td>${fmtBdt(total - ea)}</td><td>${fmtBdt(ea)}</td><td style="font-weight:600">${fmtBdt(total)}</td><td>${fmtUnits(descoTakaToKwh(ea))}</td><td style="color:${stColor};font-weight:600">${esc(st || '–')}</td></tr>`;
