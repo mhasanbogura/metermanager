@@ -995,14 +995,14 @@ function renderNescoHistory(m) {
   return `<section class="card">
     <h3>${esc(t('detail.recharge_history'))}</h3>
     ${rows.length
-      ? `<div class="tbl-scroll"><table class="list hist"><thead><tr><th>${esc(t('detail.date'))}</th><th>${esc(t('detail.token'))}</th><th>${esc(t('detail.vat_other'))}</th><th>${esc(t('detail.energy_amount'))}</th><th>${esc(t('detail.total'))}</th><th>${esc(t('detail.energy_kwh'))}</th><th>${esc(t('detail.status'))}</th></tr></thead><tbody>
+      ? `<div class="tbl-scroll"><table class="list hist"><thead><tr><th>${esc(t('detail.date'))}</th><th>${esc(t('detail.token'))}</th><th>${esc(t('detail.total'))}</th><th>${esc(t('detail.energy_amount'))}</th><th>${esc(t('detail.energy_kwh'))}</th><th>${esc(t('detail.vat_other'))}</th><th>${esc(t('detail.status'))}</th></tr></thead><tbody>
         ${rows.map(r => {
           const total = Number(r.rechargeAmount) || 0;
           const ea = Number(r.electricityAmount) || 0;
           const st = r.rechargeStatus || '';
           const stLow = st.toLowerCase();
           const stColor = stLow.includes('success') ? 'var(--success)' : (stLow.includes('fail') ? '#ff6b6b' : 'inherit');
-          return `<tr><td>${esc(r.rechargeDate || '')}</td><td style="color:var(--text-2);white-space:normal;word-break:break-all;max-width:140px">${fmtToken(r.tokenNo || r.orderId || '')}</td><td>${fmtBdt(total - ea)}</td><td>${fmtBdt(ea)}</td><td style="font-weight:600">${fmtBdt(total)}</td><td>${fmtUnits(r.energyUnit)}</td><td style="color:${stColor};font-weight:600">${esc(st || '–')}</td></tr>`;
+          return `<tr><td>${esc(r.rechargeDate || '')}</td><td style="color:var(--text-2);white-space:normal;word-break:break-all;max-width:140px">${fmtToken(r.tokenNo || r.orderId || '')}</td><td style="font-weight:600">${fmtBdt(total)}</td><td>${fmtBdt(ea)}</td><td>${fmtUnits(r.energyUnit)}</td><td>${fmtBdt(total - ea)}</td><td style="color:${stColor};font-weight:600">${esc(st || '–')}</td></tr>`;
         }).join('')}
       </tbody></table></div>`
       : `<p class="muted">${esc(t('detail.recharge_empty'))}</p>`}
@@ -1312,7 +1312,7 @@ function renderHistory(hist) {
   return `<section class="card">
     <h3>${esc(t('detail.recharge_history'))}</h3>
     ${rows.length
-      ? `<div class="tbl-scroll"><table class="list hist"><thead><tr><th>${esc(t('detail.date'))}</th><th>${esc(t('detail.token'))}</th><th>${esc(t('detail.vat_other'))}</th><th>${esc(t('detail.energy_amount'))}</th><th>${esc(t('detail.total'))}</th><th>${esc(t('detail.energy_kwh'))}</th><th>${esc(t('detail.status'))}</th></tr></thead><tbody>
+      ? `<div class="tbl-scroll"><table class="list hist"><thead><tr><th>${esc(t('detail.date'))}</th><th>${esc(t('detail.token'))}</th><th>${esc(t('detail.total'))}</th><th>${esc(t('detail.energy_amount'))}</th><th>${esc(t('detail.energy_kwh'))}</th><th>${esc(t('detail.vat_other'))}</th><th>${esc(t('detail.status'))}</th></tr></thead><tbody>
         ${rows.map(r => {
           const total = Number(r.totalAmount) || 0;
           const ea = Number(r.energyAmount) || 0;
@@ -1321,7 +1321,7 @@ function renderHistory(hist) {
           const st = r.orderStatus || r.status || r.rechargeStatus || '';
           const stLow = String(st).toLowerCase();
           const stColor = stLow.includes('success') ? 'var(--success)' : (stLow.includes('fail') ? '#ff6b6b' : 'inherit');
-          return `<tr><td>${esc(fmtDate(r.rechargeDate))}</td><td style="color:var(--text-2);white-space:normal;word-break:break-all;max-width:140px">${fmtToken(tokenDisplay)}</td><td>${fmtBdt(total - ea)}</td><td>${fmtBdt(ea)}</td><td style="font-weight:600">${fmtBdt(total)}</td><td>${fmtUnits(descoTakaToKwh(ea))}</td><td style="color:${stColor};font-weight:600">${esc(st || '–')}</td></tr>`;
+          return `<tr><td>${esc(fmtDate(r.rechargeDate))}</td><td style="color:var(--text-2);white-space:normal;word-break:break-all;max-width:140px">${fmtToken(tokenDisplay)}</td><td style="font-weight:600">${fmtBdt(total)}</td><td>${fmtBdt(ea)}</td><td>${fmtUnits(descoTakaToKwh(ea))}</td><td>${fmtBdt(total - ea)}</td><td style="color:${stColor};font-weight:600">${esc(st || '–')}</td></tr>`;
         }).join('')}
       </tbody></table></div>`
       : `<p class="muted">${esc(t('detail.recharge_empty'))}</p>`}

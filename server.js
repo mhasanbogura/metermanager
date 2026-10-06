@@ -100,6 +100,22 @@ function parseHtml(html) {
       'debtamount', 'paidamount', 'meterno', 'customerno', 'customername', 'tariff', 'organization'];
     const o = {};
     keys.forEach(k => { o[k] = attr(tag, new RegExp(`data-${k}=["']([^"']*)`, 'i')); });
+    // Remote recharge status lives in the last <td> of the row (Success/Failed)
+    let rechargeStatus = '';
+    try {
+      const cellStart = m2.index + tag.length;
+      let rowEnd = html.indexOf('</tr>', cellStart);
+      if (rowEnd < 0 || rowEnd - cellStart > 20000) rowEnd = Math.min(cellStart + 20000, html.length);
+      const rowSeg = html.slice(cellStart, rowEnd);
+      const reTds = /<td[^>]*>([\s\S]*?)<\/td>/gi;
+      let m3;
+      while ((m3 = reTds.exec(rowSeg))) {
+        const cell = m3[1].replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
+        if (cell) rechargeStatus = cell;
+      }
+      if (rechargeStatus.length > 30) rechargeStatus = '';
+    } catch { rechargeStatus = ''; }
+    o.rechargestatus = rechargeStatus;
     if (o.order || o.token) hist.push(o);
   }
 
@@ -200,6 +216,7 @@ async function nescoLookup(cust) {
         subsidy: num(h.subsidyamount), electricityAmount: num(h.purchaseamount),
         rechargeAmount: num(h.totalamount), energyUnit: num(h.purchaseenergy),
         method: h.salename || '', rechargeDate: h.purchasedate || '',
+        rechargeStatus: h.rechargestatus || '',
         debtAmount: num(h.debtamount), paidAmount: num(h.paidamount),
         meterNo: h.meterno || '', customerNo: h.customerno || '',
         customerName: h.customername || '', tariff: h.tariff || '', organization: h.organization || '',
