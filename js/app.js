@@ -414,7 +414,7 @@ async function apiGet(url, params, timeoutMs = 25000) {
   const ctrl = new AbortController();
   const tm = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
-    const res = await fetch(u, { method: 'GET', headers: { Accept: 'application/json' }, signal: ctrl.signal });
+    const res = await fetch(u, { method: 'GET', headers: { Accept: 'application/json' }, signal: ctrl.signal, cache: 'no-store' });
     if (!res.ok) throw new Error('http ' + res.status);
     const json = await res.json().catch(() => ({ code: -1, desc: 'bad json', data: null }));
     return json;
@@ -558,10 +558,10 @@ async function refreshMeterOnce(meter) {
   }
 }
 
-async function refreshAllMeters() {
+async function refreshAllMeters(opts = {}) {
   state.meters.forEach(m => { m.loading = true; });
   renderHome();
-  await Promise.all(state.meters.map(m => refreshMeter(m, { silent: true, tries: 2 }).catch(() => {})));
+  await Promise.all(state.meters.map(m => refreshMeter(m, { silent: true, tries: opts.tries ?? 2 }).catch(() => {})));
   renderHome();
 }
 
@@ -1551,7 +1551,7 @@ function initUi() {
   $('#btnSettings').onclick = () => { currentView = 'settings'; $('#view-home').style.display='none'; $('#view-settings').style.display=''; renderSettings(); scrollToTop(); };
   $('#btnRefreshAll').onclick = async () => {
     const el = $('#refreshIcon'); el.parentElement.classList.add('spinning');
-    await refreshAllMeters();
+    await refreshAllMeters({ tries: 3 });
     saveMeters();
     el.parentElement.classList.remove('spinning');
     if (currentView === 'home') renderHome();
@@ -1691,7 +1691,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.37'} (build ${'556'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.38'} (build ${'559'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
