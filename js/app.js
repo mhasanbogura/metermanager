@@ -331,6 +331,13 @@ function fmtDate(s) {
   const d = new Date(s); if (isNaN(d)) return String(s);
   return d.toLocaleDateString(langs === I18N.bn ? 'bn-BD' : 'en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 }
+function fmtDateTime(s) {
+  if (!s) return '';
+  const d = new Date(s); if (isNaN(d)) return String(s);
+  const loc = langs === I18N.bn ? 'bn-BD' : 'en-GB';
+  return d.toLocaleDateString(loc, { day: 'numeric', month: 'short', year: 'numeric' }) + ' ' +
+    d.toLocaleTimeString(loc, { hour: 'numeric', minute: '2-digit' });
+}
 function timeAgo(ts) {
   if (!ts) return t('home.updated_never');
   const m = Math.floor((Date.now() - ts) / 60000);
@@ -1327,7 +1334,7 @@ function renderHistory(hist) {
           const st = r.orderStatus || r.status || r.rechargeStatus || '';
           const stLow = String(st).toLowerCase();
           const stColor = stLow.includes('success') ? 'var(--success)' : (stLow.includes('fail') ? '#ff6b6b' : 'inherit');
-          return `<tr><td>${esc(fmtDate(r.rechargeDate))}</td><td style="white-space:normal;word-break:break-all;max-width:140px">${fmtToken(tokenDisplay)}</td><td style="font-weight:600">${fmtBdt(total)}</td><td>${fmtBdt(ea)}</td><td>${fmtUnits(descoTakaToKwh(ea))}</td><td>${money(rent)}</td><td>${money(dem)}</td><td>${money(vatV)}</td><td>${money(reb)}</td><td style="color:${stColor};font-weight:600">${esc(st || '–')}</td></tr>`;
+          return `<tr><td>${esc(fmtDateTime(r.rechargeDate))}</td><td style="white-space:normal;word-break:break-all;max-width:140px">${fmtToken(tokenDisplay)}</td><td style="font-weight:600">${fmtBdt(total)}</td><td>${fmtBdt(ea)}</td><td>${fmtUnits(descoTakaToKwh(ea))}</td><td>${money(rent)}</td><td>${money(dem)}</td><td>${money(vatV)}</td><td>${money(reb)}</td><td style="color:${stColor};font-weight:600">${esc(st || '–')}</td></tr>`;
         }).join('')}
       </tbody></table></div>`
       : `<p class="muted">${esc(t('detail.recharge_empty'))}</p>`}
