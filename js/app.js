@@ -38,7 +38,7 @@ const I18N = {
     'detail.reading_value': 'Last reading: {v} kWh',
     'detail.daily': 'Daily consumption (last 15 days)', 'detail.monthly': 'Monthly consumption (last 12 months)',
     'detail.recharge_history': 'Recharge history', 'detail.recharge_empty': 'No recharges in the last year.',
-    'detail.total': 'Total', 'detail.energy': 'Energy', 'detail.vat': 'VAT', 'detail.rebate': 'Rebate',
+    'detail.total': 'Total', 'detail.energy': 'Energy', 'detail.vat': 'VAT', 'detail.rebate': 'Rebate', 'detail.meter_rent': 'Meter Rent', 'detail.demand_charge': 'Demand Charge',
     'detail.date': 'Date', 'detail.order': 'Order', 'detail.token': 'Token', 'detail.kwh': 'kWh', 'detail.bdt': '৳',
     'detail.chart_unit': 'kWh', 'detail.chart_taka': '৳',
     'detail.consumption_empty': 'No consumption data for this period.',
@@ -136,7 +136,7 @@ const I18N = {
     'detail.reading_value': 'শেষ রিডিং: {v} kWh',
     'detail.daily': 'দৈনিক ব্যবহার (শেষ ১৫ দিন)', 'detail.monthly': 'মাসিক ব্যবহার (শেষ ১২ মাস)',
     'detail.recharge_history': 'রিচার্জ ইতিহাস', 'detail.recharge_empty': 'গত এক বছরে কোনো রিচার্জ নেই।',
-    'detail.total': 'মোট', 'detail.energy': 'এনার্জি', 'detail.vat': 'ভ্যাট', 'detail.rebate': 'রিবেট',
+    'detail.total': 'মোট', 'detail.energy': 'এনার্জি', 'detail.vat': 'ভ্যাট', 'detail.rebate': 'রিবেট', 'detail.meter_rent': 'মিটার রেন্ট', 'detail.demand_charge': 'ডিমান্ড চার্জ',
     'detail.date': 'তারিখ', 'detail.order': 'অর্ডার', 'detail.token': 'টোকেন', 'detail.kwh': 'কিলোওয়াট', 'detail.bdt': '৳',
     'detail.chart_unit': 'কিলোওয়াট', 'detail.chart_taka': '৳',
     'detail.consumption_empty': 'এই সময়ের কোনো ব্যবহারের তথ্য নেই।',
@@ -995,14 +995,14 @@ function renderNescoHistory(m) {
   return `<section class="card">
     <h3>${esc(t('detail.recharge_history'))}</h3>
     ${rows.length
-      ? `<div class="tbl-scroll"><table class="list hist"><thead><tr><th>${esc(t('detail.date'))}</th><th>${esc(t('detail.token'))}</th><th>${esc(t('detail.total'))}</th><th>${esc(t('detail.energy_amount'))}</th><th>${esc(t('detail.energy_kwh'))}</th><th>${esc(t('detail.vat_other'))}</th><th>${esc(t('detail.status'))}</th></tr></thead><tbody>
+      ? `<div class="tbl-scroll"><table class="list hist"><thead><tr><th>${esc(t('detail.date'))}</th><th>${esc(t('detail.token'))}</th><th>${esc(t('detail.total'))}</th><th>${esc(t('detail.energy_amount'))}</th><th>${esc(t('detail.energy_kwh'))}</th><th>${esc(t('detail.meter_rent'))}</th><th>${esc(t('detail.demand_charge'))}</th><th>${esc(t('detail.vat'))}</th><th>${esc(t('detail.rebate'))}</th><th>${esc(t('detail.status'))}</th></tr></thead><tbody>
         ${rows.map(r => {
           const total = Number(r.rechargeAmount) || 0;
           const ea = Number(r.electricityAmount) || 0;
           const st = r.rechargeStatus || '';
           const stLow = st.toLowerCase();
           const stColor = stLow.includes('success') ? 'var(--success)' : (stLow.includes('fail') ? '#ff6b6b' : 'inherit');
-          return `<tr><td>${esc(r.rechargeDate || '')}</td><td style="color:var(--text-2);white-space:normal;word-break:break-all;max-width:140px">${fmtToken(r.tokenNo || r.orderId || '')}</td><td style="font-weight:600">${fmtBdt(total)}</td><td>${fmtBdt(ea)}</td><td>${fmtUnits(r.energyUnit)}</td><td>${fmtBdt(total - ea)}</td><td style="color:${stColor};font-weight:600">${esc(st || '–')}</td></tr>`;
+          return `<tr><td>${esc(r.rechargeDate || '')}</td><td style="color:var(--text-2);white-space:normal;word-break:break-all;max-width:140px">${fmtToken(r.tokenNo || r.orderId || '')}</td><td style="font-weight:600">${fmtBdt(total)}</td><td>${fmtBdt(ea)}</td><td>${fmtUnits(r.energyUnit)}</td><td>${fmtBdt(Number(r.meterRent) || 0)}</td><td>${fmtBdt(Number(r.demandCharge) || 0)}</td><td>${fmtBdt(Number(r.vat) || 0)}</td><td>${fmtBdt(Number(r.subsidy) || 0)}</td><td style="color:${stColor};font-weight:600">${esc(st || '–')}</td></tr>`;
         }).join('')}
       </tbody></table></div>`
       : `<p class="muted">${esc(t('detail.recharge_empty'))}</p>`}
@@ -1312,16 +1312,22 @@ function renderHistory(hist) {
   return `<section class="card">
     <h3>${esc(t('detail.recharge_history'))}</h3>
     ${rows.length
-      ? `<div class="tbl-scroll"><table class="list hist"><thead><tr><th>${esc(t('detail.date'))}</th><th>${esc(t('detail.token'))}</th><th>${esc(t('detail.total'))}</th><th>${esc(t('detail.energy_amount'))}</th><th>${esc(t('detail.energy_kwh'))}</th><th>${esc(t('detail.vat_other'))}</th><th>${esc(t('detail.status'))}</th></tr></thead><tbody>
+      ? `<div class="tbl-scroll"><table class="list hist"><thead><tr><th>${esc(t('detail.date'))}</th><th>${esc(t('detail.token'))}</th><th>${esc(t('detail.total'))}</th><th>${esc(t('detail.energy_amount'))}</th><th>${esc(t('detail.energy_kwh'))}</th><th>${esc(t('detail.meter_rent'))}</th><th>${esc(t('detail.demand_charge'))}</th><th>${esc(t('detail.vat'))}</th><th>${esc(t('detail.rebate'))}</th><th>${esc(t('detail.status'))}</th></tr></thead><tbody>
         ${rows.map(r => {
           const total = Number(r.totalAmount) || 0;
           const ea = Number(r.energyAmount) || 0;
           const tokens = (r.chargeItems || []).map(c => c.tokenNo || c.token || '').filter(Boolean).join(', ');
           const tokenDisplay = tokens || r.tokenNo || r.token || r.orderID || '';
+          const chFind = (re) => { const c = (r.chargeItems || []).find(c => re.test(c.chargeItemName || c.name || '')); return c ? Number(c.chargeAmount) : null; };
+          const rent = chFind(/rent/i);
+          const dem = chFind(/demand/i);
+          const vatV = (r.VAT !== undefined && r.VAT !== null && r.VAT !== '') ? Number(r.VAT) : chFind(/vat/i);
+          const reb = (r.rebate !== undefined && r.rebate !== null && r.rebate !== '') ? Number(r.rebate) : null;
+          const money = v => (v === null || v === undefined || isNaN(v)) ? '–' : fmtBdt(v);
           const st = r.orderStatus || r.status || r.rechargeStatus || '';
           const stLow = String(st).toLowerCase();
           const stColor = stLow.includes('success') ? 'var(--success)' : (stLow.includes('fail') ? '#ff6b6b' : 'inherit');
-          return `<tr><td>${esc(fmtDate(r.rechargeDate))}</td><td style="color:var(--text-2);white-space:normal;word-break:break-all;max-width:140px">${fmtToken(tokenDisplay)}</td><td style="font-weight:600">${fmtBdt(total)}</td><td>${fmtBdt(ea)}</td><td>${fmtUnits(descoTakaToKwh(ea))}</td><td>${fmtBdt(total - ea)}</td><td style="color:${stColor};font-weight:600">${esc(st || '–')}</td></tr>`;
+          return `<tr><td>${esc(fmtDate(r.rechargeDate))}</td><td style="color:var(--text-2);white-space:normal;word-break:break-all;max-width:140px">${fmtToken(tokenDisplay)}</td><td style="font-weight:600">${fmtBdt(total)}</td><td>${fmtBdt(ea)}</td><td>${fmtUnits(descoTakaToKwh(ea))}</td><td>${money(rent)}</td><td>${money(dem)}</td><td>${money(vatV)}</td><td>${money(reb)}</td><td style="color:${stColor};font-weight:600">${esc(st || '–')}</td></tr>`;
         }).join('')}
       </tbody></table></div>`
       : `<p class="muted">${esc(t('detail.recharge_empty'))}</p>`}
