@@ -38,7 +38,7 @@ import java.util.regex.Pattern;
 public class MainActivity extends Activity {
     private WebView webView;
     private static final String TAG = "MeterManager";
-    private static final String WEB_URL = "https://mhasanbogura.github.io/prepaid-meter-manager/";
+    private static final String WEB_URL = "https://mhasanbogura.github.io/metermanager/";
     private static final String PANEL = "https://customer.nesco.gov.bd/pre/panel";
     private static final String SUBMIT_HISTORY = "\u09B0\u09BF\u099A\u09BE\u09B0\u09CD\u099C \u09B9\u09BF\u09B8\u09CD\u099F\u09CD\u09B0\u09BF";
     private static final String SUBMIT_MONTHLY = "\u09AE\u09BE\u09B8\u09BF\u0995 \u09AC\u09CD\u09AF\u09AC\u09B9\u09BE\u09B0";
