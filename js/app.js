@@ -1837,7 +1837,7 @@ window._settingsContact = async function(el) {
 function applyLang() {
   langs = I18N[state.settings.lang] || I18N.en;
   document.documentElement.lang = state.settings.lang;
-  document.body.style.fontFamily = state.settings.lang === 'bn' ? '"Kalpurush", "SolaimanLipi", sans-serif' : '"Times New Roman", serif';
+  document.body.style.fontFamily = state.settings.lang === 'bn' ? '"Kalpurush", "SolaimanLipi", "Inter", sans-serif' : '';
   document.title = t('app.name');
   $$('[data-i18n]').forEach(el => { el.innerHTML = t(el.dataset.i18n); });
   renderHome();
