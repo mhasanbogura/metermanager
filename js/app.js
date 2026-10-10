@@ -1602,7 +1602,7 @@ function renderSettings() {
           <div style="display:flex;align-items:center;gap:12px;flex:1">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" style="opacity:.6"><path d="M17 1.01L7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-1.99-2-1.99zM17 19H7V5h10v14z"/></svg>
             <div>
-              <div style="font-weight:600">${esc(t('settings.device_theme'))}</div>
+              <div>${esc(t('settings.device_theme'))}</div>
             </div>
           </div>
           <label class="toggle"><input type="checkbox" id="settDeviceTheme" ${state.settings.theme === 'system' ? 'checked' : ''}><span class="toggle-slider"></span></label>
@@ -1612,7 +1612,7 @@ function renderSettings() {
           <div style="display:flex;align-items:center;gap:12px;flex:1">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" style="opacity:.6"><path d="M9 2c-1.05 0-2.05.16-3 .46 4.06 1.27 7 5.06 7 9.54 0 4.48-2.94 8.27-7 9.54.95.3 1.95.46 3 .46 5.52 0 10-4.48 10-10S14.52 2 9 2z"/></svg>
             <div>
-              <div style="font-weight:600">${esc(t('settings.oled_theme'))}</div>
+              <div>${esc(t('settings.oled_theme'))}</div>
             </div>
           </div>
           <label class="toggle"><input type="checkbox" id="settDarkTheme" ${state.settings.theme === 'oled' ? 'checked' : ''}><span class="toggle-slider"></span></label>
@@ -1621,7 +1621,7 @@ function renderSettings() {
         <div class="row" style="justify-content:space-between;gap:12px">
           <div style="display:flex;align-items:center;gap:12px;flex:1">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" style="opacity:.6"><path d="M12.87 15.07l-2.54-2.51.03-.03A17.52 17.52 0 0014.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11.76-2.04M18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2l-4.5-12m-2.62 7l1.62-4.33L19.12 17h-3.24z"/></svg>
-            <div style="font-weight:600">${esc(t('settings.language'))}</div>
+            <div>${esc(t('settings.language'))}</div>
           </div>
           <div class="lang-toggle" id="settLangToggle" data-lang="${lang}">
             <div class="lt-slider"></div>
@@ -1634,7 +1634,7 @@ function renderSettings() {
           <div style="display:flex;align-items:center;gap:12px;flex:1">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" style="opacity:.6"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>
             <div>
-              <div style="font-weight:600">${esc(t('settings.low_threshold'))}</div>
+              <div>${esc(t('settings.low_threshold'))}</div>
               <div class="hint" style="margin:0">${esc(t('settings.low_threshold_hint'))}</div>
             </div>
           </div>
@@ -1698,7 +1698,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.42'} (build ${'571'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.43'} (build ${'574'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
