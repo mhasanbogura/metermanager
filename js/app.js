@@ -1551,11 +1551,38 @@ function showView(name) {
     else requestAnimationFrame(() => window.scrollTo(0, homeScrollY));
   }
   if (name === 'meter') renderMeterDetail();
+  if (name === 'settings') {
+    currentMeterId = null;
+    $('#view-home').style.display='none'; $('#view-settings').style.display='';
+    renderSettings();
+  }
   if (name !== 'home' || prev === 'home') scrollToTop();
 }
+function navTo(name) {
+  showView(name);
+  try {
+    const s = history.state || {};
+    if (s.view !== currentView || (currentView === 'meter' && s.id !== currentMeterId)) {
+      history.pushState({ view: currentView, id: currentMeterId }, '', '');
+    }
+  } catch (e) { /* ignore */ }
+}
 function initUi() {
-  $('#btnBrand').onclick = () => { currentView = 'home'; currentMeterId = null; $('#view-home').style.display=''; $('#view-settings').style.display='none'; renderHome(); scrollToTop(); };
-  $('#btnSettings').onclick = () => { currentView = 'settings'; $('#view-home').style.display='none'; $('#view-settings').style.display=''; renderSettings(); scrollToTop(); };
+  $('#btnBrand').onclick = () => navTo('home');
+  $('#btnSettings').onclick = () => navTo(currentView === 'settings' ? 'home' : 'settings');
+  try { history.replaceState({ view: currentView, id: currentMeterId }, '', ''); } catch (e) {}
+  window.addEventListener('popstate', (e) => {
+    const s = (e && e.state) || {};
+    if (s.view === 'meter') {
+      currentMeterId = s.id || null;
+      if (!currentMeter()) { showView('home'); return; }
+      showView('meter');
+    } else if (s.view === 'settings') {
+      showView('settings');
+    } else {
+      showView('home');
+    }
+  });
   $('#btnRefreshAll').onclick = async () => {
     const el = $('#refreshIcon'); el.parentElement.classList.add('spinning');
     await refreshAllMeters({ tries: 3 });
