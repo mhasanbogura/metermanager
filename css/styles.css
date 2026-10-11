@@ -325,29 +325,20 @@ table.list.hist tr:last-child td { border-bottom: 1px solid var(--border); }
 .toggle input:checked + .toggle-slider { background: var(--primary); }
 .toggle input:checked + .toggle-slider::before { transform: translateX(20px); }
 .lang-toggle {
-  position: relative; display: inline-flex; background: var(--surface-2); border-radius: 30px;
-  border: 1px solid var(--border); overflow: hidden; cursor: pointer; height: 36px;
-  box-shadow: inset 2px 2px 4px rgba(0,0,0,.08), inset -2px -2px 4px rgba(255,255,255,.6);
+  display: inline-flex; background: var(--surface-2); border-radius: 30px;
+  border: 1px solid var(--border); cursor: pointer; padding: 3px; gap: 2px;
 }
-[data-theme="dark"] .lang-toggle, [data-theme="oled"] .lang-toggle {
-  box-shadow: inset 2px 2px 4px rgba(0,0,0,.3), inset -2px -2px 4px rgba(255,255,255,.05);
-}
-.lang-toggle .lt-slider {
-  position: absolute; top: 3px; bottom: 3px; width: 50%; background: var(--surface);
-  border-radius: 30px; transition: left .25s; z-index: 2;
-  box-shadow: 2px 2px 4px rgba(0,0,0,.12), -1px -1px 3px rgba(255,255,255,.5);
-}
-[data-theme="dark"] .lang-toggle .lt-slider, [data-theme="oled"] .lang-toggle .lt-slider {
-  box-shadow: 2px 2px 4px rgba(0,0,0,.4), -1px -1px 3px rgba(255,255,255,.05);
-}
-.lang-toggle[data-lang="bn"] .lt-slider { left: calc(50% - 3px); }
-.lang-toggle[data-lang="en"] .lt-slider { left: 3px; }
+.lang-toggle .lt-slider { display: none; }
 .lang-toggle .lt-label {
-  position: relative; z-index: 1; padding: 0 14px; font-size: 13px; font-weight: 700;
-  line-height: 30px; color: var(--text-2); transition: color .2s; white-space: nowrap;
+  padding: 6px 18px; font-size: 13px; font-weight: 700;
+  color: var(--text-2); white-space: nowrap; border-radius: 30px;
   display: flex; align-items: center; justify-content: center; flex: 1;
+  transition: background .2s, color .2s;
 }
-.lang-toggle .lt-label.active { color: var(--primary); }
+.lang-toggle .lt-label.active {
+  background: var(--surface); color: var(--primary);
+  box-shadow: 0 1px 4px rgba(0,0,0,.18);
+}
 .lang-toggle .lt-flag {
   width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
   font-size: 14px; line-height: 1;
