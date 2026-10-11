@@ -1712,7 +1712,7 @@ function renderSettings() {
           <span style="flex:1">${esc(t('settings.share'))}</span>
           <svg class="sett-chevron" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
         </div>` : `
-        <div class="sett-item" onclick="window.open('https://github.com/mhasanbogura/metermanager/releases/latest/download/MeterManager.apk','_blank')">
+        <div class="sett-item" onclick="window.open('https://u2l.ai/MeterManager','_blank')">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="opacity:.6"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
           <span style="flex:1">${esc(t('settings.get_app'))}</span>
           <svg class="sett-chevron" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
