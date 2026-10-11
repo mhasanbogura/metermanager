@@ -1854,7 +1854,7 @@ function applyTheme() {
     t1 = state.settings.theme;
   }
   document.documentElement.dataset.theme = t1;
-  const themeColor = t1 === 'oled' ? '#0a0a0a' : t1 === 'dark' ? '#1a1f2a' : '#e8ebf0';
+  const themeColor = t1 === 'oled' ? '#000000' : t1 === 'dark' ? '#0f1218' : '#f2f4f8';
   document.querySelector('meta[name="theme-color"]').content = themeColor;
   if (window.NescoBridge && NescoBridge.setStatusBarColor) {
     NescoBridge.setStatusBarColor(themeColor);

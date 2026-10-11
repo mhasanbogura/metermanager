@@ -57,16 +57,16 @@ input, select { font-family: inherit; }
   height: var(--topbar-h);
   display: flex; align-items: center; gap: 6px;
   padding: 0 12px;
-  background: #e8ebf0;
+  background: var(--bg);
   color: #14181f;
   box-shadow: var(--shadow);
 }
 [data-theme="dark"] .topbar {
-  background: #1a1f2a;
+  background: var(--bg);
   color: #e8ebf1;
 }
 [data-theme="oled"] .topbar {
-  background: #0a0a0a;
+  background: var(--bg);
   color: #e8ebf1;
 }
 .brand { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }

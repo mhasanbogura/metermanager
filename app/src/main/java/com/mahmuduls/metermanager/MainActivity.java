@@ -60,7 +60,7 @@ public class MainActivity extends Activity {
             int nightMask = getResources().getConfiguration().uiMode & android.content.res.Configuration.UI_MODE_NIGHT_MASK;
             resolved = (nightMask == android.content.res.Configuration.UI_MODE_NIGHT_YES) ? "oled" : "light";
         }
-        setStatusBarColorDirect("light".equals(resolved) ? "#e8ebf0" : "oled".equals(resolved) ? "#0a0a0a" : "#1a1f2a");
+        setStatusBarColorDirect("light".equals(resolved) ? "#f2f4f8" : "oled".equals(resolved) ? "#000000" : "#0f1218");
 
         getWindow().setDecorFitsSystemWindows(true);
 
@@ -115,9 +115,9 @@ public class MainActivity extends Activity {
                     "(function(){var t=document.querySelector('meta[name=theme-color]');return t?t.content:'light'})()",
                     value -> {
                         String color = value != null ? value.replace("\"", "") : "light";
-                        if ("light".equals(color)) color = "#e8ebf0";
-                        else if ("dark".equals(color)) color = "#1a1f2a";
-                        else if ("oled".equals(color)) color = "#0a0a0a";
+                        if ("light".equals(color)) color = "#f2f4f8";
+                        else if ("dark".equals(color)) color = "#0f1218";
+                        else if ("oled".equals(color)) color = "#000000";
                         setStatusBarColorDirect(color);
                     });
             }
@@ -973,7 +973,7 @@ public class MainActivity extends Activity {
             boolean isDark = nightMask == android.content.res.Configuration.UI_MODE_NIGHT_YES;
             webView.evaluateJavascript(
                 "window._androidDarkMode=" + isDark + ";if(typeof applyTheme==='function')applyTheme()", null);
-            String color = isDark ? "#0a0a0a" : "#e8ebf0";
+            String color = isDark ? "#000000" : "#f2f4f8";
             setStatusBarColorDirect(color);
         }, 150);
     }
