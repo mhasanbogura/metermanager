@@ -2236,6 +2236,7 @@ function dailyCacheCleanup() {
 }
 async function boot() {
   loadState();
+  try { await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL); } catch {}
   try {
     const rq = new URLSearchParams(location.search).get('r');
     if (rq) { try { sessionStorage.setItem('mm_deeplink', rq); } catch (e) {} }
@@ -2245,8 +2246,12 @@ async function boot() {
   initUi();
   initAuth();
   registerSw();
+  let authResolved = false;
+  let loginTimer = null;
   auth.onAuthStateChanged(async (user) => {
     if (user) {
+      authResolved = true;
+      if (loginTimer) { clearTimeout(loginTimer); loginTimer = null; }
       currentUser = user;
       showApp();
       applyLang();
@@ -2262,10 +2267,22 @@ async function boot() {
       refreshAllMeters().then(() => renderHome());
       scheduleAlerts();
       scheduleAutoRefresh();
-    } else {
+    } else if (authResolved) {
       currentUser = null;
       hideSplash();
       if (!(await openSharedMeter())) showAuthScreen('auth-screen');
+    } else {
+      /* First null may fire before the saved session restores — wait briefly
+         (keep splash) instead of flashing the login screen on every refresh. */
+      if (loginTimer) clearTimeout(loginTimer);
+      loginTimer = setTimeout(async () => {
+        loginTimer = null;
+        if (currentUser) return;
+        authResolved = true;
+        currentUser = null;
+        hideSplash();
+        if (!(await openSharedMeter())) showAuthScreen('auth-screen');
+      }, 2000);
     }
   });
   if (window.NescoBridge && typeof window.NescoBridge.getPendingGoogleToken === 'function') {
@@ -2279,7 +2296,6 @@ async function boot() {
       }
     }
   }
-  try { await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL); } catch {}
   try { await db.enablePersistence({ synchronizeTabs: true }); } catch {}
 }
 document.addEventListener('DOMContentLoaded', boot);
