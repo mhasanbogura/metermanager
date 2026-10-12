@@ -442,7 +442,7 @@ async function probeSystemType(accountNo, meterNo) {
   return null;
 }
 function balanceOf(meter) { return meter.balance !== null && meter.balance !== undefined ? Number(meter.balance) : null; }
-function lowBalance(meter) { const b = balanceOf(meter); return b !== null && b < (meter.lowThreshold ?? state.settings.alertThreshold ?? LOW_BALANCE); }
+function lowBalance(meter) { const b = balanceOf(meter); const th = (typeof isSharedView !== 'undefined' && isSharedView && currentView === 'meter') ? 0 : (meter.lowThreshold ?? state.settings.alertThreshold ?? LOW_BALANCE); return b !== null && b < th; }
 function median(arr) {
   if (!arr.length) return 0;
   const s = [...arr].sort((a, b) => a - b);
@@ -945,6 +945,7 @@ function scrollToTop() {
 function openMeter(id) {
   currentMeterId = id;
   currentView = 'meter';
+  if (isSharedView) { isSharedView = false; applyViewChrome(); }
   homeScrollY = window.scrollY || document.documentElement.scrollTop || 0;
   history.pushState({ view: 'meter', id }, '', '');
   scrollToTop();
@@ -954,6 +955,20 @@ function openMeter(id) {
 }
 function currentMeter() { return state.meters.find(m => m.id === currentMeterId) || (typeof previewMeter !== 'undefined' && previewMeter && previewMeter.id === currentMeterId ? previewMeter : null); }
 var previewMeter = null;
+var isSharedView = false;
+/* Direct-link pages are chrome-free: no topbar, forced light theme, threshold 0. */
+function applyViewChrome() {
+  const shared = isSharedView && currentView === 'meter';
+  const tb = document.querySelector('.topbar');
+  if (tb) tb.style.display = shared ? 'none' : '';
+  if (shared) {
+    document.documentElement.dataset.theme = 'light';
+    try { document.querySelector('meta[name="theme-color"]').content = '#f2f4f8'; } catch (e) {}
+    if (window.NescoBridge && NescoBridge.setStatusBarColor) { try { NescoBridge.setStatusBarColor('#f2f4f8'); } catch (e) {} }
+  } else {
+    try { applyTheme(); } catch (e) {}
+  }
+}
 /* Open a shared direct link (/desco/<no> or /nesco/<no>) as a transient
    preview: no login required, nothing is added or saved. Returns true if opened. */
 async function openSharedMeter() {
@@ -981,9 +996,10 @@ async function openSharedMeter() {
     previewMeter = meter;
   }
   showApp();
-  try { applyTheme(); } catch (e) {}
   try { applyLang(); } catch (e) {}
   openMeter(meter.id);
+  isSharedView = true;
+  applyViewChrome();
   try {
     const base = location.pathname.replace(/\/$/, '').replace(/\/(desco|nesco)\/[^/]+$/i, '');
     history.replaceState({ view: 'meter', id: meter.id }, '', base + '/' + prov + '/' + num);
@@ -996,6 +1012,8 @@ async function openSharedMeter() {
 function closeSharedMeter() {
   previewMeter = null;
   currentMeterId = null;
+  isSharedView = false;
+  applyViewChrome();
   try { history.replaceState({}, '', location.pathname.replace(/\/(desco|nesco)\/[^/]+$/i, '') || '/'); } catch (e) {}
   if (currentUser) showView('home');
   else { showApp(); showAuthScreen('auth-screen'); }
@@ -1019,7 +1037,6 @@ async function renderMeterDetail() {
     <div class="page-head">
       <h2 style="font-size:19px;flex:1">${esc(m.nickname || m.info?.customerName || m.info?.name || m.accountNo || m.meterNo || m.consumerNo)}</h2>
       <button class="icon-btn" style="width:34px;height:34px" onclick="window._copyMeterLink()" aria-label="Copy direct link" title="Copy direct link"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg></button>
-      ${(typeof previewMeter !== 'undefined' && previewMeter && previewMeter.id === currentMeterId) ? `<button class="icon-btn" style="width:34px;height:34px" onclick="closeSharedMeter()" aria-label="Close" title="Close"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>` : ''}
     </div>
     <div class="balance-hero">
       <div class="bh-label"><span>${esc(t('detail.balance'))}</span><span>${m.provider === 'nesco' ? 'NESCO' : 'DESCO'} · ${esc(m.info?.accountNo || m.accountNo || m.consumerNo || '')}</span></div>
@@ -1602,6 +1619,13 @@ function drawChart(canvas, labels, series) {
 function showView(name) {
   const prev = currentView;
   currentView = name;
+  if (name === 'home' && typeof currentUser !== 'undefined' && !currentUser) {
+    currentMeterId = null; previewMeter = null; isSharedView = false;
+    applyViewChrome();
+    showApp(); showAuthScreen('auth-screen');
+    return;
+  }
+  if (isSharedView && name !== 'meter') { isSharedView = false; applyViewChrome(); }
   if (name === 'home') {
     currentMeterId = null;
     $('#view-home').style.display=''; $('#view-settings').style.display='none';
