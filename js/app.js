@@ -1021,7 +1021,7 @@ function closeSharedMeter() {
 window._copyMeterLink = function() {
   const m = currentMeter();
   if (!m) return;
-  const num = m.provider === 'nesco' ? (m.consumerNo || '') : (m.meterNo || m.accountNo || '');
+  const num = m.provider === 'nesco' ? (m.consumerNo || '') : (m.accountNo || m.meterNo || '');
   if (!num) return;
   let path = location.pathname.replace(/\/$/, '').replace(/\/(desco|nesco)\/[^/]+$/i, '');
   let base = (location.origin && location.origin !== 'null') ? (location.origin + path) : 'https://mhasanbogura.github.io/metermanager';
