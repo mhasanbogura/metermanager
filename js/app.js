@@ -984,7 +984,10 @@ async function openSharedMeter() {
   try { applyTheme(); } catch (e) {}
   try { applyLang(); } catch (e) {}
   openMeter(meter.id);
-  try { history.replaceState({ view: 'meter', id: meter.id }, '', location.pathname); } catch (e) {}
+  try {
+    const base = location.pathname.replace(/\/$/, '').replace(/\/(desco|nesco)\/[^/]+$/i, '');
+    history.replaceState({ view: 'meter', id: meter.id }, '', base + '/' + prov + '/' + num);
+  } catch (e) {}
   renderMeterDetail();
   try { await refreshMeter(meter, { silent: true }); } catch (e) {}
   if (currentMeterId === meter.id) renderMeterDetail();
@@ -993,7 +996,7 @@ async function openSharedMeter() {
 function closeSharedMeter() {
   previewMeter = null;
   currentMeterId = null;
-  try { history.replaceState({}, '', location.pathname); } catch (e) {}
+  try { history.replaceState({}, '', location.pathname.replace(/\/(desco|nesco)\/[^/]+$/i, '') || '/'); } catch (e) {}
   if (currentUser) showView('home');
   else { showApp(); showAuthScreen('auth-screen'); }
 }
@@ -2240,6 +2243,10 @@ async function boot() {
   try {
     const rq = new URLSearchParams(location.search).get('r');
     if (rq) { try { sessionStorage.setItem('mm_deeplink', rq); } catch (e) {} }
+    else {
+      const dm = location.pathname.match(/\/(desco|nesco)\/([^/]+)\/?$/i);
+      if (dm) { try { sessionStorage.setItem('mm_deeplink', dm[1].toLowerCase() + '/' + dm[2]); } catch (e) {} }
+    }
   } catch (e) {}
   dailyCacheCleanup();
   applyTheme();

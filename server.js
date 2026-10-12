@@ -400,8 +400,12 @@ const server = http.createServer((req, res) => {
 
   let p = decodeURIComponent(url.pathname);
   if (p === '/') p = '/index.html';
-  if (/^\/desco\.html\/\d+/i.test(p)) p = '/desco.html';
-  if (/^\/nesco\.html\/\d+/i.test(p)) p = '/nesco.html';
+  const deep = p.match(/^\/(desco|nesco)\/([^/]+)\/?$/i);
+  if (deep) {
+    res.writeHead(302, { Location: '/?r=' + encodeURIComponent(deep[1].toLowerCase() + '/' + deep[2]) });
+    res.end();
+    return;
+  }
   const file = path.normalize(path.join(ROOT, p));
   if (!file.startsWith(ROOT)) { res.writeHead(403); res.end('403'); return; }
   fs.readFile(file, (err, buf) => {
