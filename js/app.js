@@ -445,7 +445,7 @@ async function probeSystemType(accountNo, meterNo) {
   return null;
 }
 function balanceOf(meter) { return meter.balance !== null && meter.balance !== undefined ? Number(meter.balance) : null; }
-function lowBalance(meter) { const b = balanceOf(meter); return b !== null && b < (meter.lowThreshold ?? state.settings.alertThreshold ?? LOW_BALANCE); }
+function lowBalance(meter) { const b = balanceOf(meter); const th = (typeof isSharedView !== 'undefined' && isSharedView && currentView === 'meter') ? 0 : (meter.lowThreshold ?? state.settings.alertThreshold ?? LOW_BALANCE); return b !== null && b < th; }
 function median(arr) {
   if (!arr.length) return 0;
   const s = [...arr].sort((a, b) => a - b);
@@ -955,7 +955,47 @@ function openMeter(id) {
   requestAnimationFrame(scrollToTop);
   setTimeout(scrollToTop, 100);
 }
-function currentMeter() { return state.meters.find(m => m.id === currentMeterId); }
+function currentMeter() { return state.meters.find(m => m.id === currentMeterId) || (typeof previewMeter !== 'undefined' && previewMeter && previewMeter.id === currentMeterId ? previewMeter : null); }
+var previewMeter = null;
+var isSharedView = false;
+/* Direct-link preview pages are chrome-free: no topbar, forced light theme, threshold 0. */
+function applyViewChrome() {
+  const shared = isSharedView && currentView === 'meter';
+  const tb = document.querySelector('.topbar');
+  if (tb) tb.style.display = shared ? 'none' : '';
+  if (shared) {
+    document.documentElement.dataset.theme = 'light';
+    try { document.querySelector('meta[name="theme-color"]').content = '#f2f4f8'; } catch (e) {}
+    if (window.NescoBridge && NescoBridge.setStatusBarColor) { try { NescoBridge.setStatusBarColor('#f2f4f8'); } catch (e) {} }
+  } else {
+    try { applyTheme(); } catch (e) {}
+  }
+}
+/* Login-free transient preview of a shared meter: loads live data, saves nothing. */
+async function openSharedPreview(prov, num) {
+  const isAcct = prov === 'desco' && num.length === 8;
+  const meter = {
+    id: 'mx' + Date.now(), provider: prov,
+    consumerNo: prov === 'nesco' ? num : undefined,
+    accountNo: isAcct ? num : undefined, meterNo: (prov === 'desco' && !isAcct) ? num : undefined,
+    nickname: '', info: null, history: [], balance: null, readingTime: null,
+    updatedAt: null, err: null, loading: true
+  };
+  previewMeter = meter;
+  showApp();
+  try { applyLang(); } catch (e) {}
+  openMeter(meter.id);
+  isSharedView = true;
+  applyViewChrome();
+  try {
+    const base = location.pathname.replace(/\/$/, '').replace(/\/(desco|nesco)\/[^/]+$/i, '');
+    history.replaceState({ view: 'meter', id: meter.id }, '', base + '/' + prov + '/' + num);
+  } catch (e) {}
+  renderMeterDetail();
+  try { await refreshMeter(meter, { silent: true }); } catch (e) {}
+  if (currentMeterId === meter.id) renderMeterDetail();
+  return true;
+}
 /* Open a shared direct link (/desco/<no> or /nesco/<no>): the meter is added
    to the account (after login) and opened. Returns true if handled. */
 async function openSharedMeter() {
@@ -968,6 +1008,7 @@ async function openSharedMeter() {
   const num = bdDigits(pm[2]).replace(/\D/g, '');
   if (prov === 'nesco' && !/^\d{8,11}$/.test(num)) { toast('Invalid NESCO number'); return false; }
   if (prov === 'desco' && !/^\d{8,12}$/.test(num)) { toast(t('add.number.hint')); return false; }
+  if (!currentUser) return openSharedPreview(prov, num);
   let meter = state.meters.find(x => x.provider === prov && (x.consumerNo === num || x.accountNo === num || x.meterNo === num));
   if (!meter) {
     try {
@@ -1667,7 +1708,7 @@ function initUi() {
   document.addEventListener('click', e => {
     const back = e.target.closest('[data-back]');
     if (back) { e.preventDefault(); if (!$('#dlg').hidden) { closeDialog(); return; } currentMeterId = null; showView('home'); return; }
-    if (currentView === 'meter' &&
+    if (currentView === 'meter' && !isSharedView &&
       (e.target === $('#homeContent') || e.target === $('#view-home') ||
        (e.target.classList && (e.target.classList.contains('home-content') || e.target.classList.contains('view'))))) {
       currentMeterId = null; showView('home');
@@ -2290,7 +2331,8 @@ async function boot() {
     } else if (authResolved) {
       currentUser = null;
       hideSplash();
-      showAuthScreen('auth-screen');
+      try { if (!(await openSharedMeter())) showAuthScreen('auth-screen'); }
+      catch (e) { showAuthScreen('auth-screen'); }
     } else {
       /* First null may fire before the saved session restores — wait briefly
          (keep splash) instead of flashing the login screen on every refresh. */
@@ -2301,7 +2343,8 @@ async function boot() {
         authResolved = true;
         currentUser = null;
         hideSplash();
-        showAuthScreen('auth-screen');
+        try { if (!(await openSharedMeter())) showAuthScreen('auth-screen'); }
+        catch (e) { showAuthScreen('auth-screen'); }
       }, 2000);
     }
   });
