@@ -1028,16 +1028,24 @@ window._openNescoPortal = function() {
   if (!num) return;
   window.open('https://customer.nesco.gov.bd/pre/panel#' + encodeURIComponent(num), '_blank');
 };
-window._copyMeterLink = function() {  const m = currentMeter();
+window._copyMeterLink = function() {
+  const m = currentMeter();
   if (!m) return;
-  const num = m.provider === 'nesco' ? (m.consumerNo || '') : (m.accountNo || m.meterNo || '');
-  if (!num) return;
-  let path = location.pathname.replace(/\/$/, '').replace(/\/(desco|nesco)\/[^/]+$/i, '');
-  let base = (location.origin && location.origin !== 'null') ? (location.origin + path) : 'https://mhasanbogura.github.io/metermanager';
-  base = base.replace(/\/$/, '');
-  navigator.clipboard.writeText(base + '/' + m.provider + '/' + num).then(() => toast(t('settings.link_copied') || 'Link copied!')).catch(() => {});
+  let url;
+  if (m.provider === 'nesco') {
+    const num = m.consumerNo || '';
+    if (!num) return;
+    url = 'https://customer.nesco.gov.bd/pre/panel#' + encodeURIComponent(num);
+  } else {
+    const num = m.accountNo || m.meterNo || '';
+    if (!num) return;
+    let path = location.pathname.replace(/\/$/, '').replace(/\/(desco|nesco)\/[^/]+$/i, '');
+    let base = (location.origin && location.origin !== 'null') ? (location.origin + path) : 'https://mhasanbogura.github.io/metermanager';
+    base = base.replace(/\/$/, '');
+    url = base + '/' + m.provider + '/' + num;
+  }
+  navigator.clipboard.writeText(url).then(() => toast(t('settings.link_copied') || 'Link copied!')).catch(() => {});
 };
-
 async function renderMeterDetail() {
   const m = currentMeter();
   const c = $('#homeContent');
@@ -1059,7 +1067,6 @@ async function renderMeterDetail() {
       ${m.loading ? '<div style="opacity:.9;font-size:12.5px">' + esc(t('home.refreshing')) + '</div>' : (m.err ? `<div style="opacity:.9;font-size:12.5px;color:#ffd9d9">${esc(m.err)}</div>` : '')}
     </div>
     ${m.provider === 'nesco' ? `
-    <button class="btn" style="width:100%;margin:0 0 8px" onclick="window._openNescoPortal()">${esc(t('nesco.portal_open'))}</button>
     <p class="muted" style="font-size:12px;margin:0 0 14px">${esc(t('nesco.portal_tip'))} <a href="javascript:(function(){var h=(location.hash||'').replace(/\D/g,'');var i=document.getElementById('cust_no')||document.querySelector('input[name=cust_no]');if(!i){alert('Open this on the NESCO panel page');return;}if(h)i.value=h;var b=document.getElementById('recharge_hist_button');if(i.value&&b){b.click();}else{i.focus();}})();">NESCO Fill</a></p>` : ''}
     ${m.provider === 'desco' ? renderInfoCard(m) : ''}
     ${m.provider === 'desco' ? '<div id="totalUseWrap"></div>' : ''}
