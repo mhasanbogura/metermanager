@@ -56,6 +56,13 @@ function extractToken(html) {
   const m = html.match(/name="_token"\s+value="([^"]+)"/) || html.match(/_token" value="([^"]+)"/);
   return m ? m[1] : null;
 }
+function panelDiag(resp) {
+  try {
+    const html = (resp.body || '').toString('utf8');
+    const title = (html.match(/<title[^>]*>([^<]*)<\/title>/i) || [])[1] || '';
+    return 'panel HTTP ' + resp.status + ', ' + html.length + 'B' + (title ? ', title: ' + title.trim().slice(0, 80) : '');
+  } catch (e) { return 'panel unreadable'; }
+}
 
 function attr(html, re) {
   const m = html.match(re);
@@ -153,7 +160,7 @@ async function nescoLookup(cust) {
     const get = await req(PANEL);
     const panelHtml = get.body.toString('utf8');
     const token = extractToken(panelHtml);
-    if (!token) throw new Error('no csrf token');
+    if (!token) throw new Error('no csrf token (' + panelDiag(get) + ')');
     const cookie = sessionCookie(get.headers);
     if (!cookie) throw new Error('no session cookie');
     const form = '_token=' + encodeURIComponent(token) +
@@ -280,7 +287,7 @@ async function nescoMonthlyUsage(cust) {
 
   const get = await req(PANEL);
   const token = extractToken(get.body.toString('utf8'));
-  if (!token) throw new Error('no csrf token');
+  if (!token) throw new Error('no csrf token (' + panelDiag(get) + ')');
   const cookie = sessionCookie(get.headers);
   if (!cookie) throw new Error('no session cookie');
 
@@ -310,7 +317,7 @@ async function nescoDebug(cust) {
   async function fetchNesco(submit) {
     const get = await req(PANEL);
     const token = extractToken(get.body.toString('utf8'));
-    if (!token) throw new Error('no csrf token');
+    if (!token) throw new Error('no csrf token (' + panelDiag(get) + ')');
     const cookie = sessionCookie(get.headers);
     if (!cookie) throw new Error('no session cookie');
     const form = '_token=' + encodeURIComponent(token) +
