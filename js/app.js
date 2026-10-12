@@ -1068,7 +1068,7 @@ async function renderMeterDetail() {
   c.innerHTML = `
     <div class="page-head">
       <h2 style="font-size:19px;flex:1">${esc(m.nickname || m.info?.customerName || m.info?.name || m.accountNo || m.meterNo || m.consumerNo)}</h2>
-      ${m.provider === 'desco' ? `<button class="icon-btn" style="width:34px;height:34px" onclick="window._copyMeterLink()" aria-label="Copy direct link" title="Copy direct link"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg></button>` : ''}
+      ${m.provider === 'desco' && !isSharedView ? `<button class="icon-btn" style="width:34px;height:34px" onclick="window._copyMeterLink()" aria-label="Copy direct link" title="Copy direct link"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg></button>` : ''}
     </div>
     <div class="balance-hero">
       <div class="bh-label"><span>${esc(t('detail.balance'))}</span><span>${m.provider === 'nesco' ? 'NESCO' : 'DESCO'} · ${esc(m.info?.accountNo || m.accountNo || m.consumerNo || '')}</span></div>
