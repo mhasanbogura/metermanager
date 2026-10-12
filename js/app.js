@@ -1678,7 +1678,7 @@ function initUi() {
   document.addEventListener('click', e => {
     const back = e.target.closest('[data-back]');
     if (back) { e.preventDefault(); if (!$('#dlg').hidden) { closeDialog(); return; } currentMeterId = null; showView('home'); return; }
-    if (currentView === 'meter' &&
+    if (currentView === 'meter' && !isSharedView &&
       (e.target === $('#homeContent') || e.target === $('#view-home') ||
        (e.target.classList && (e.target.classList.contains('home-content') || e.target.classList.contains('view'))))) {
       currentMeterId = null; showView('home');
