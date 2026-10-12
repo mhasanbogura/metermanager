@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NESCO Direct Open</title>
+<style>
+body{font-family:system-ui,sans-serif;max-width:560px;margin:40px auto;padding:0 16px;background:#0b3d91;color:#fff;text-align:center}
+.card{background:#fff;color:#111;border-radius:12px;padding:24px;margin-top:20px}
+input{font-size:20px;text-align:center;padding:10px;width:220px;margin:10px 0}
+a.btn{display:inline-block;background:#0b3d91;color:#fff;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:700;margin:6px}
+a.bookmark{background:#0a7a5c}
+code{background:#eee;padding:2px 6px;border-radius:4px;word-break:break-all}
+.small{font-size:13px;opacity:.8}
+</style>
+</head>
+<body>
+<h2>NESCO Panel Direct Open</h2>
+<p class="small">NESCO does NOT support <code>?cust_no=</code> links. GET always loads empty, POST without CSRF token = 419 Page Expired. Use this 1-click filler instead.</p>
+<div class="card">
+<div>
+<input id="num" maxlength="11" placeholder="83900975">
+</div>
+<a class="btn" id="openBtn" href="https://customer.nesco.gov.bd/pre/panel" target="_blank" rel="noopener">1. Open NESCO panel</a>
+<button class="btn" id="copyBtn" style="border:0;cursor:pointer">2. Copy number</button>
+<p><a class="btn bookmark" id="marklet" href="#">3. Drag this to bookmarks bar ↑</a></p>
+<p class="small" id="hint">On the NESCO page, click the bookmark — it fills the number and presses রিচার্জ হিস্ট্রি automatically.</p>
+<p class="small">Direct URL for sharing this helper:<br><code id="shareUrl"></code></p>
+</div>
+<script>
+var q = new URLSearchParams(location.search).get('num') || (location.pathname.match(/(\d{8,11})/)||[])[1] || '';
+if(q) document.getElementById('num').value = q.replace(/\D/g,'').slice(0,11);
+function num(){ return document.getElementById('num').value.replace(/\D/g,'').slice(0,11); }
+document.getElementById('shareUrl').textContent = location.origin + location.pathname + '?num=' + (num()||'83900975');
+document.getElementById('num').addEventListener('input', function(){
+document.getElementById('shareUrl').textContent = location.origin + location.pathname + '?num=' + num();
+buildMark();
+});
+function buildMark(){
+var n = num()||'83900975';
+var js = "javascript:(function(){var n='"+n+"';var i=document.getElementById('cust_no');if(!i){alert('Open customer.nesco.gov.bd/pre/panel first');return;}i.value=n;i.focus();var b=document.getElementById('recharge_hist_button');if(b)b.click();})()";
+document.getElementById('marklet').href = js;
+}
+buildMark();
+document.getElementById('copyBtn').onclick = function(){ var n=num(); if(!n) return alert('Enter number'); navigator.clipboard.writeText(n).then(function(){alert('Copied: '+n+'\nPaste in NESCO panel');}); };
+document.getElementById('openBtn').onclick = function(){ var n=num(); if(n) navigator.clipboard.writeText(n).catch(function(){}); };
+</script>
+</body>
+</html>
