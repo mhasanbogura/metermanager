@@ -58,7 +58,7 @@ const I18N = {
     'detail.energy_amount': 'Energy Amount', 'detail.energy_kwh': 'Energy (kWh)', 'detail.vat_other': 'VAT & Other Charges',
     'home.low': 'Low balance',
     'nesco.portal_open': 'View Recharge History on NESCO Portal',
-    'nesco.portal_tip': 'First time: drag the NESCO Fill link to your bookmarks bar. Then on the portal page, click it to auto-fill the number and open history.',
+    'nesco.portal_tip': 'Install once, then portal links open history by themselves:',
     'add.nesco_hint': 'Enter your 8 to 11 digit NESCO consumer / customer number.',
     'nesco.needs_server': 'NESCO needs the local server running. Start it with `node server.js`.',
     'nesco.no_data': 'Not found in the NESCO database. Check the number and try again.',
@@ -158,8 +158,7 @@ const I18N = {
     'detail.energy_amount': 'এনার্জি অ্যামাউন্ট', 'detail.energy_kwh': 'এনার্জি (kWh)', 'detail.vat_other': 'ভ্যাট ও অন্যান্য চার্জ',
     'home.low': 'ব্যালেন্স কম',
     'nesco.portal_open': 'NESCO পোর্টালে রিচার্জ হিস্ট্রি দেখুন',
-    'nesco.portal_tip': 'প্রথমবার: NESCO Fill লিংকটি বুকমার্ক বারে টেনে নিন। তারপর পোর্টাল পেজে এটিতে ক্লিক করলে নম্বর স্বয়ংক্রিয়ভাবে বসবে।',
-    'add.nesco_hint': 'আপনার ৮ থেকে ১১ ডিজিটের নেসকো কনজিউমার / কাস্টমার নম্বরটি প্রবেশ করান।',
+    'nesco.portal_tip': 'একবার ইনস্টল করুন, তারপর পোর্টাল লিংক নিজেই হিস্ট্রি খুলবে:',    'add.nesco_hint': 'আপনার ৮ থেকে ১১ ডিজিটের নেসকো কনজিউমার / কাস্টমার নম্বরটি প্রবেশ করান।',
     'nesco.needs_server': 'নেসকোর জন্য লোকাল সার্ভার দরকার। `node server.js` দিয়ে চালু করুন।',
     'nesco.no_data': 'নেসকো ডাটাবেজে পাওয়া যায়নি। নম্বর মিলিয়ে দেখুন।',
     'alerts.title': 'ব্যালেন্স অ্যালার্ট', 'alerts.body': 'মিটার {n} এর ব্যালেন্স {b} এ নেমে এসেছে। সংযোগ বিচ্ছিন্ন হওয়ার আগে রিচার্জ করুন।',
@@ -1066,8 +1065,15 @@ async function renderMeterDetail() {
       </div>
       ${m.loading ? '<div style="opacity:.9;font-size:12.5px">' + esc(t('home.refreshing')) + '</div>' : (m.err ? `<div style="opacity:.9;font-size:12.5px;color:#ffd9d9">${esc(m.err)}</div>` : '')}
     </div>
-    ${m.provider === 'nesco' ? `
-    <p class="muted" style="font-size:12px;margin:0 0 14px">${esc(t('nesco.portal_tip'))} <a href="javascript:(function(){var h=(location.hash||'').replace(/\D/g,'');var i=document.getElementById('cust_no')||document.querySelector('input[name=cust_no]');if(!i){alert('Open this on the NESCO panel page');return;}if(h)i.value=h;var b=document.getElementById('recharge_hist_button');if(i.value&&b){b.click();}else{i.focus();}})();">NESCO Fill</a></p>` : ''}
+    ${m.provider === 'nesco' ? (() => {
+      let sbase = 'https://mhasanbogura.github.io/metermanager';
+      try {
+        if (location.origin && location.origin !== 'null') {
+          sbase = (location.origin + location.pathname.replace(/\/$/, '').replace(/\/(desco|nesco)\/[^/]+$/i, '')).replace(/\/$/, '');
+        }
+      } catch (e) {}
+      return `<p class="muted" style="font-size:12px;margin:0 0 14px">${esc(t('nesco.portal_tip'))} <a href="javascript:(function(){var h=(location.hash||'').replace(/\D/g,'');var i=document.getElementById('cust_no')||document.querySelector('input[name=cust_no]');if(!i){alert('Open this on the NESCO panel page');return;}if(h)i.value=h;var b=document.getElementById('recharge_hist_button');if(i.value&&b){b.click();}else{i.focus();}})();">NESCO Fill</a> · <a href="${sbase}/nesco-fill.user.js" target="_blank">Auto script</a></p>`;
+    })() : ''}
     ${m.provider === 'desco' ? renderInfoCard(m) : ''}
     ${m.provider === 'desco' ? '<div id="totalUseWrap"></div>' : ''}
     ${m.provider === 'nesco' ? renderNescoInfoCard(m) : ''}
