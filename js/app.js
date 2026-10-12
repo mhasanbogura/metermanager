@@ -952,7 +952,61 @@ function openMeter(id) {
   requestAnimationFrame(scrollToTop);
   setTimeout(scrollToTop, 100);
 }
-function currentMeter() { return state.meters.find(m => m.id === currentMeterId); }
+function currentMeter() { return state.meters.find(m => m.id === currentMeterId) || (typeof previewMeter !== 'undefined' && previewMeter && previewMeter.id === currentMeterId ? previewMeter : null); }
+var previewMeter = null;
+/* Open a shared direct link (/desco/<no> or /nesco/<no>) as a transient
+   preview: no login required, nothing is added or saved. Returns true if opened. */
+async function openSharedMeter() {
+  let r = null;
+  try { r = sessionStorage.getItem('mm_deeplink'); sessionStorage.removeItem('mm_deeplink'); } catch (e) {}
+  if (!r) return false;
+  const pm = String(r).replace(/^\/+|\/+$/g, '').match(/^(desco|nesco)\/([0-9\u09E6-\u09EF]+)$/i);
+  if (!pm) return false;
+  const prov = pm[1].toLowerCase();
+  const num = bdDigits(pm[2]).replace(/\D/g, '');
+  if (prov === 'nesco' && !/^\d{8,11}$/.test(num)) { toast('Invalid NESCO number'); return false; }
+  if (prov === 'desco' && !/^\d{8,12}$/.test(num)) { toast(t('add.number.hint')); return false; }
+  let meter = state.meters.find(x => x.provider === prov && (x.consumerNo === num || x.accountNo === num || x.meterNo === num));
+  if (meter) {
+    previewMeter = null;
+  } else {
+    const isAcct = prov === 'desco' && num.length === 8;
+    meter = {
+      id: 'mx' + Date.now(), provider: prov,
+      consumerNo: prov === 'nesco' ? num : undefined,
+      accountNo: isAcct ? num : undefined, meterNo: (prov === 'desco' && !isAcct) ? num : undefined,
+      nickname: '', info: null, history: [], balance: null, readingTime: null,
+      updatedAt: null, err: null, loading: true
+    };
+    previewMeter = meter;
+  }
+  showApp();
+  try { applyTheme(); } catch (e) {}
+  try { applyLang(); } catch (e) {}
+  openMeter(meter.id);
+  try { history.replaceState({ view: 'meter', id: meter.id }, '', location.pathname); } catch (e) {}
+  renderMeterDetail();
+  try { await refreshMeter(meter, { silent: true }); } catch (e) {}
+  if (currentMeterId === meter.id) renderMeterDetail();
+  return true;
+}
+function closeSharedMeter() {
+  previewMeter = null;
+  currentMeterId = null;
+  try { history.replaceState({}, '', location.pathname); } catch (e) {}
+  if (currentUser) showView('home');
+  else { showApp(); showAuthScreen('auth-screen'); }
+}
+window._copyMeterLink = function() {
+  const m = currentMeter();
+  if (!m) return;
+  const num = m.provider === 'nesco' ? (m.consumerNo || '') : (m.meterNo || m.accountNo || '');
+  if (!num) return;
+  let path = location.pathname.replace(/\/$/, '').replace(/\/(desco|nesco)\/[^/]+$/i, '');
+  let base = (location.origin && location.origin !== 'null') ? (location.origin + path) : 'https://mhasanbogura.github.io/metermanager';
+  base = base.replace(/\/$/, '');
+  navigator.clipboard.writeText(base + '/' + m.provider + '/' + num).then(() => toast(t('settings.link_copied') || 'Link copied!')).catch(() => {});
+};
 
 async function renderMeterDetail() {
   const m = currentMeter();
@@ -960,7 +1014,9 @@ async function renderMeterDetail() {
   if (!m) { showView('home'); return; }
   c.innerHTML = `
     <div class="page-head">
-      <h2 style="font-size:19px">${esc(m.nickname || m.info?.customerName || m.info?.name || m.accountNo || m.meterNo || m.consumerNo)}</h2>
+      <h2 style="font-size:19px;flex:1">${esc(m.nickname || m.info?.customerName || m.info?.name || m.accountNo || m.meterNo || m.consumerNo)}</h2>
+      <button class="icon-btn" style="width:34px;height:34px" onclick="window._copyMeterLink()" aria-label="Copy direct link" title="Copy direct link"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg></button>
+      ${(typeof previewMeter !== 'undefined' && previewMeter && previewMeter.id === currentMeterId) ? `<button class="icon-btn" style="width:34px;height:34px" onclick="closeSharedMeter()" aria-label="Close" title="Close"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>` : ''}
     </div>
     <div class="balance-hero">
       <div class="bh-label"><span>${esc(t('detail.balance'))}</span><span>${m.provider === 'nesco' ? 'NESCO' : 'DESCO'} · ${esc(m.info?.accountNo || m.accountNo || m.consumerNo || '')}</span></div>
@@ -1580,7 +1636,8 @@ function initUi() {
     } else if (s.view === 'settings') {
       showView('settings');
     } else {
-      showView('home');
+      if (typeof currentUser !== 'undefined' && !currentUser) { previewMeter = null; currentMeterId = null; showApp(); showAuthScreen('auth-screen'); }
+      else showView('home');
     }
   });
   $('#btnRefreshAll').onclick = async () => {
@@ -2179,6 +2236,10 @@ function dailyCacheCleanup() {
 }
 async function boot() {
   loadState();
+  try {
+    const rq = new URLSearchParams(location.search).get('r');
+    if (rq) { try { sessionStorage.setItem('mm_deeplink', rq); } catch (e) {} }
+  } catch (e) {}
   dailyCacheCleanup();
   applyTheme();
   initUi();
@@ -2197,13 +2258,14 @@ async function boot() {
       applyLang();
       state.meters.forEach(m => { m.loading = true; m.err = null; });
       renderHome();
+      openSharedMeter();
       refreshAllMeters().then(() => renderHome());
       scheduleAlerts();
       scheduleAutoRefresh();
     } else {
       currentUser = null;
       hideSplash();
-      showAuthScreen('auth-screen');
+      if (!(await openSharedMeter())) showAuthScreen('auth-screen');
     }
   });
   if (window.NescoBridge && typeof window.NescoBridge.getPendingGoogleToken === 'function') {

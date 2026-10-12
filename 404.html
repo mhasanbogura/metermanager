@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Meter Manager</title>
+<script>
+(function () {
+  try {
+    var segs = location.pathname.split('/').filter(function (s) { return !!s; });
+    var base = segs.length ? '/' + segs[0] + '/' : '/';
+    var rest = segs.slice(1).join('/');
+    var extra = location.search ? '&' + location.search.replace(/^\?/, '') : '';
+    var target = base + (rest ? '?r=' + encodeURIComponent(rest) + extra : extra.replace(/^&/, '?')) + (location.hash || '');
+    location.replace(target);
+  } catch (e) {
+    location.replace('/metermanager/');
+  }
+})();
+</script>
+</head>
+<body></body>
+</html>
