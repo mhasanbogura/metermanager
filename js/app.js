@@ -1000,7 +1000,10 @@ async function openSharedMeter() {
     }
   }
   openMeter(meter.id);
-  try { history.replaceState({ view: 'meter', id: meter.id }, '', location.pathname); } catch (e) {}
+  try {
+    const base = location.pathname.replace(/\/$/, '').replace(/\/(desco|nesco)\/[^/]+$/i, '');
+    history.replaceState({ view: 'meter', id: meter.id }, '', base + '/' + prov + '/' + num);
+  } catch (e) {}
   renderMeterDetail();
   try { await refreshMeter(meter, { silent: true }); } catch (e) {}
   if (currentMeterId === meter.id) renderMeterDetail();
@@ -2287,7 +2290,7 @@ async function boot() {
     } else if (authResolved) {
       currentUser = null;
       hideSplash();
-      if (!(await openSharedMeter())) showAuthScreen('auth-screen');
+      showAuthScreen('auth-screen');
     } else {
       /* First null may fire before the saved session restores — wait briefly
          (keep splash) instead of flashing the login screen on every refresh. */
@@ -2298,7 +2301,7 @@ async function boot() {
         authResolved = true;
         currentUser = null;
         hideSplash();
-        if (!(await openSharedMeter())) showAuthScreen('auth-screen');
+        showAuthScreen('auth-screen');
       }, 2000);
     }
   });
