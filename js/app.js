@@ -57,6 +57,8 @@ const I18N = {
     'settings.no_desc': 'No description available.', 'settings.no_contact': 'No contact information available.',
     'detail.energy_amount': 'Energy Amount', 'detail.energy_kwh': 'Energy (kWh)', 'detail.vat_other': 'VAT & Other Charges',
     'home.low': 'Low balance',
+    'nesco.portal_open': 'View Recharge History on NESCO Portal',
+    'nesco.portal_tip': 'First time: drag the NESCO Fill link to your bookmarks bar. Then on the portal page, click it to auto-fill the number and open history.',
     'add.nesco_hint': 'Enter your 8 to 11 digit NESCO consumer / customer number.',
     'nesco.needs_server': 'NESCO needs the local server running. Start it with `node server.js`.',
     'nesco.no_data': 'Not found in the NESCO database. Check the number and try again.',
@@ -155,6 +157,8 @@ const I18N = {
     'settings.no_desc': 'কোনো বর্ণনা পাওয়া যায়নি।', 'settings.no_contact': 'কোনো যোগাযোগের তথ্য পাওয়া যায়নি।',
     'detail.energy_amount': 'এনার্জি অ্যামাউন্ট', 'detail.energy_kwh': 'এনার্জি (kWh)', 'detail.vat_other': 'ভ্যাট ও অন্যান্য চার্জ',
     'home.low': 'ব্যালেন্স কম',
+    'nesco.portal_open': 'NESCO পোর্টালে রিচার্জ হিস্ট্রি দেখুন',
+    'nesco.portal_tip': 'প্রথমবার: NESCO Fill লিংকটি বুকমার্ক বারে টেনে নিন। তারপর পোর্টাল পেজে এটিতে ক্লিক করলে নম্বর স্বয়ংক্রিয়ভাবে বসবে।',
     'add.nesco_hint': 'আপনার ৮ থেকে ১১ ডিজিটের নেসকো কনজিউমার / কাস্টমার নম্বরটি প্রবেশ করান।',
     'nesco.needs_server': 'নেসকোর জন্য লোকাল সার্ভার দরকার। `node server.js` দিয়ে চালু করুন।',
     'nesco.no_data': 'নেসকো ডাটাবেজে পাওয়া যায়নি। নম্বর মিলিয়ে দেখুন।',
@@ -1018,8 +1022,13 @@ function closeSharedMeter() {
   if (currentUser) showView('home');
   else { showApp(); showAuthScreen('auth-screen'); }
 }
-window._copyMeterLink = function() {
+window._openNescoPortal = function() {
   const m = currentMeter();
+  const num = m ? (m.consumerNo || '') : '';
+  if (!num) return;
+  window.open('https://customer.nesco.gov.bd/pre/panel#' + encodeURIComponent(num), '_blank');
+};
+window._copyMeterLink = function() {  const m = currentMeter();
   if (!m) return;
   const num = m.provider === 'nesco' ? (m.consumerNo || '') : (m.accountNo || m.meterNo || '');
   if (!num) return;
@@ -1049,6 +1058,9 @@ async function renderMeterDetail() {
       </div>
       ${m.loading ? '<div style="opacity:.9;font-size:12.5px">' + esc(t('home.refreshing')) + '</div>' : (m.err ? `<div style="opacity:.9;font-size:12.5px;color:#ffd9d9">${esc(m.err)}</div>` : '')}
     </div>
+    ${m.provider === 'nesco' ? `
+    <button class="btn" style="width:100%;margin:0 0 8px" onclick="window._openNescoPortal()">${esc(t('nesco.portal_open'))}</button>
+    <p class="muted" style="font-size:12px;margin:0 0 14px">${esc(t('nesco.portal_tip'))} <a href="javascript:(function(){var h=(location.hash||'').replace(/\D/g,'');var i=document.getElementById('cust_no')||document.querySelector('input[name=cust_no]');if(!i){alert('Open this on the NESCO panel page');return;}if(h)i.value=h;var b=document.getElementById('recharge_hist_button');if(i.value&&b){b.click();}else{i.focus();}})();">NESCO Fill</a></p>` : ''}
     ${m.provider === 'desco' ? renderInfoCard(m) : ''}
     ${m.provider === 'desco' ? '<div id="totalUseWrap"></div>' : ''}
     ${m.provider === 'nesco' ? renderNescoInfoCard(m) : ''}
