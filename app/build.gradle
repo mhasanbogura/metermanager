@@ -97,7 +97,7 @@ def deployTo = { File dist ->
 
 task deployApk(dependsOn: 'assembleDebug') {
     doLast {
-        deployTo(file('/home/mhasanbogura/Google Drive/mahmudulhasandhk70/Apk Store/Android'))
+        deployTo(file('/home/mhasanbogura/Google Drive/mahmudulhasandhk70/App Store/Android'))
     }
 }
 
@@ -146,7 +146,7 @@ task uploadToGitHub {
         println "GitHub: tagged ${tagName}"
 
         def apkFile = "Meter Manager_com.mahmuduls.metermanager_v${newVn}_build_${newVc}.apk"
-        def apkPath = new File('/home/mhasanbogura/Google Drive/mahmudulhasandhk70/Apk Store/Android', apkFile)
+        def apkPath = new File('/home/mhasanbogura/Google Drive/mahmudulhasandhk70/App Store/Android', apkFile)
         def tmpApk = new File(layout.buildDirectory.get().asFile, 'MeterManager.apk')
         exec {
             commandLine ghBin, 'release', 'delete', tagName, '--yes'
