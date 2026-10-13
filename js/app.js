@@ -1059,7 +1059,11 @@ window._copyMeterLink = function() {
   let base = (location.origin && location.origin !== 'null') ? (location.origin + path) : 'https://mhasanbogura.github.io/metermanager';
   base = base.replace(/\/$/, '');
   const url = base + '/' + m.provider + '/' + num;
-  navigator.clipboard.writeText(url).then(() => toast(t('settings.link_copied') || 'Link copied!')).catch(() => {});
+  if (window.NescoBridge && window.NescoBridge.shareText) {
+    try { window.NescoBridge.shareText('Meter Manager', url); } catch (e) {}
+  } else {
+    navigator.clipboard.writeText(url).then(() => toast(t('settings.link_copied') || 'Link copied!')).catch(() => {});
+  }
 };
 async function renderMeterDetail() {
   const m = currentMeter();
