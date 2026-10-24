@@ -23,6 +23,16 @@ if (minor > 99) { minor = 0; major += 1 }
 def newVn = "${major}.${minor}.${patch}"
 def newVc = vc + 3
 
+def isWindows = System.getProperty('os.name').toLowerCase().contains('windows')
+// Where the finished APK is copied to (the store folder)
+def storeDist = isWindows
+    ? 'C:/Google Drive/mahmudulhasandhk70/App Store/Android'
+    : '/home/mhasanbogura/Google Drive/mahmudulhasandhk70/App Store/Android'
+// GitHub CLI binary
+def ghBin = isWindows
+    ? "${System.getProperty('user.home')}/.tools/bin/gh"
+    : '/home/mhasanbogura/gh-cli/bin/gh'
+
 android {
     namespace 'com.mahmuduls.metermanager'
     compileSdk 34
@@ -97,12 +107,11 @@ def deployTo = { File dist ->
 
 task deployApk(dependsOn: 'assembleDebug') {
     doLast {
-        deployTo(file('/home/mhasanbogura/Google Drive/mahmudulhasandhk70/App Store/Android'))
+        deployTo(file(storeDist))
     }
 }
 
 task uploadToGitHub {
-    def ghBin = '/home/mhasanbogura/gh-cli/bin/gh'
     doLast {
         def out = new ByteArrayOutputStream()
         exec {
@@ -146,7 +155,7 @@ task uploadToGitHub {
         println "GitHub: tagged ${tagName}"
 
         def apkFile = "Meter Manager_com.mahmuduls.metermanager_v${newVn}_build_${newVc}.apk"
-        def apkPath = new File('/home/mhasanbogura/Google Drive/mahmudulhasandhk70/App Store/Android', apkFile)
+        def apkPath = new File(storeDist, apkFile)
         def tmpApk = new File(layout.buildDirectory.get().asFile, 'MeterManager.apk')
         exec {
             commandLine ghBin, 'release', 'delete', tagName, '--yes'
@@ -184,4 +193,6 @@ task uploadToGitHub {
 afterEvaluate {
     assembleDebug.finalizedBy deployApk
     deployApk.finalizedBy uploadToGitHub
+    // Run with -PskipGitHub to build and deploy the APK only (no commit, push or release)
+    uploadToGitHub.onlyIf { !project.hasProperty('skipGitHub') }
 }
