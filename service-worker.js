@@ -1,14 +1,25 @@
-/* Meter Manager — offline shell service worker (network-first, cache fallback) */
-const CACHE = 'metermanager-v18';
+/* Meter Manager — offline shell service worker.
+   Same-origin GETs are network-first with a SHORT TIMEOUT, then cache:
+   - network answers within NETWORK_TIMEOUT -> fresh copy, as before;
+   - network is slower (or down) -> the cached copy is served immediately, so
+     cold start never waits on the wire, and the late network response still
+     refreshes the cache in the background so the NEXT launch picks it up.
+   Cross-origin requests (fonts, analytics, portal APIs) are left alone. */
+const CACHE = 'metermanager-v19';
+const NETWORK_TIMEOUT = 800;
 const ASSETS = [
   './',
   './index.html',
   './css/styles.css',
   './js/app.js',
+  './js/vendor/firebase-app-compat.js',
+  './js/vendor/firebase-auth-compat.js',
+  './js/vendor/firebase-database-compat.js',
   './firebase-config.js',
   './manifest.webmanifest',
   './icons/icon-electricity.svg',
-  './icons/icon-512.png'
+  './icons/icon-512.png',
+  './icons/icon-317.png'
 ];
 
 self.addEventListener('install', e => {
@@ -27,13 +38,31 @@ self.addEventListener('fetch', e => {
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
   if (url.origin !== location.origin) return;
-  e.respondWith(
-    fetch(req)
-      .then(res => {
+
+  const refresh = fetch(req)
+    .then(res => {
+      if (res && res.ok) {
         const copy = res.clone();
         caches.open(CACHE).then(c => c.put(req, copy)).catch(() => {});
-        return res;
-      })
-      .catch(() => caches.match(req).then(hit => hit || caches.match('./index.html')))
+      }
+      return res;
+    })
+    .catch(() => null);
+
+  const timeout = new Promise(resolve =>
+    setTimeout(() => resolve(null), NETWORK_TIMEOUT));
+
+  e.respondWith(
+    Promise.race([refresh, timeout]).then(hit => {
+      if (hit) return hit;
+      /* ignoreSearch so versioned URLs (?v=487) still hit their precached copy;
+         only navigations may fall back to the shell — never a script/style. */
+      return caches.match(req, { ignoreSearch: true }).then(cached => {
+        if (cached) return cached;
+        return req.mode === 'navigate' ? caches.match('./index.html') : Response.error();
+      });
+    })
   );
+  /* keep the slow/late response alive so the cache gets updated anyway */
+  e.waitUntil(refresh);
 });

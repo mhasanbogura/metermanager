@@ -1849,7 +1849,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.54'} (build ${'607'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.55'} (build ${'610'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
@@ -2067,7 +2067,9 @@ function showApp() {
 }
 function hideSplash(immediate) {
   const elapsed = (typeof performance !== 'undefined') ? performance.now() : 1000;
-  const wait = immediate ? 0 : Math.max(0, 1000 - elapsed);
+  /* 350ms floor: long enough to avoid a one-frame flash of the login screen on a
+     very fast load, short enough not to feel like a stall on cold start. */
+  const wait = immediate ? 0 : Math.max(0, 350 - elapsed);
   setTimeout(() => {
     const splash = document.getElementById('splash-screen');
     if (splash && !splash.classList.contains('hidden')) {
@@ -2280,7 +2282,9 @@ function dailyCacheCleanup() {
 }
 async function boot() {
   loadState();
-  try { await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL); } catch {}
+  /* LOCAL is already the default persistence; awaiting its IndexedDB write only
+     delays the auth listener below, so fire it in the background instead. */
+  try { auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {}); } catch {}
   try {
     const rq = new URLSearchParams(location.search).get('r');
     if (rq) { try { sessionStorage.setItem('mm_deeplink', rq); } catch (e) {} }
@@ -2324,6 +2328,8 @@ async function boot() {
       /* First null may fire before the saved session restores — wait briefly
          (keep splash) instead of flashing the login screen on every refresh. */
       if (loginTimer) clearTimeout(loginTimer);
+      /* 1s: long enough for a restored session to arrive from IndexedDB, short
+         enough that a cold start never sits on the splash for 2+ extra seconds. */
       loginTimer = setTimeout(async () => {
         loginTimer = null;
         if (currentUser) return;
@@ -2332,7 +2338,7 @@ async function boot() {
         hideSplash();
         try { if (!(await openSharedMeter())) showAuthScreen('auth-screen'); }
         catch (e) { showAuthScreen('auth-screen'); }
-      }, 2000);
+      }, 1000);
     }
   });
   if (window.NescoBridge && typeof window.NescoBridge.getPendingGoogleToken === 'function') {
