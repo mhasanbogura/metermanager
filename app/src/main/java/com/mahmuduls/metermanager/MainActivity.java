@@ -80,8 +80,14 @@ public class MainActivity extends Activity {
 
         webView.addJavascriptInterface(new NescoBridge(), "NescoBridge");
 
+        /* requestServerAuthCode(..., true) makes Google re-prompt its own consent
+           screen ("You're signing in to Meter Manager" + privacy policy / ToS) after
+           the account is chosen, instead of silently accepting a previously granted
+           scope. This is the same option set the Mess Manager app uses. The auth code
+           itself is unused — we only need the consent step. */
         GoogleSignInOptions gso = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
                 .requestIdToken(getString(R.string.default_web_client_id))
+                .requestServerAuthCode(getString(R.string.default_web_client_id), true)
                 .requestEmail()
                 .build();
         googleSignInClient = GoogleSignIn.getClient(this, gso);
