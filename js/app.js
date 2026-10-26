@@ -1849,7 +1849,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.52'} (build ${'601'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.53'} (build ${'604'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
@@ -2162,38 +2162,21 @@ window.onGoogleSignInResult = async function(idToken, email) {
   _googleAuthInProgress = true;
   const btns = document.querySelectorAll('.auth-btn-google');
   btns.forEach(b => { b.disabled = true; });
-  if (!idToken) {
-    toast('Google sign-in cancelled', true);
+  try {
+    /* The native Google sign-in activity has already shown Google's own consent
+       screen by the time this callback fires, so sign in immediately — no in-app
+       imitation of Google's consent UI. */
+    if (!idToken) { toast('Google sign-in cancelled', true); return; }
+    const credential = firebase.auth.GoogleAuthProvider.credential(idToken);
+    const c = await auth.signInWithCredential(credential);
+    const s = await db.ref('users/' + c.user.uid).once('value');
+    if (!s.exists()) await db.ref('users/' + c.user.uid).set({ name: c.user.displayName, email: c.user.email, createdAt: Date.now() });
+  } catch (e) {
+    toast(e.message || 'Google login failed', true);
+  } finally {
     btns.forEach(b => { b.disabled = false; });
     _googleAuthInProgress = false;
-    return;
   }
-  btns.forEach(b => { b.disabled = false; });
-  openDialog('Sign in with Google',
-    '<div style="text-align:center">' +
-    '<svg width="24" height="24" viewBox="0 0 48 48" style="margin-bottom:8px"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>' +
-    '<div style="font-weight:700;font-size:16px;margin-bottom:12px">You\'re signing in to Meter Manager</div>' +
-    '<div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:12px">' +
-    '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="opacity:.5"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>' +
-    '<span style="font-size:14px">' + esc(email || '') + '</span>' +
-    '</div>' +
-    '<p style="font-size:12px;color:var(--text-2);line-height:1.5">Review Meter Manager\'s privacy policy and Terms of Service to understand how Meter Manager will process and protect your data.</p>' +
-    '</div>',
-    [
-      { key: 'cancel', label: t('btn.cancel'), cls: 'secondary', fn: () => { _googleAuthInProgress = false; closeDialog(); } },
-      { key: 'continue', label: 'Continue', cls: '', fn: async () => {
-        closeDialog();
-        btns.forEach(b => { b.disabled = true; });
-        try {
-          const credential = firebase.auth.GoogleAuthProvider.credential(idToken);
-          const c = await auth.signInWithCredential(credential);
-          const s = await db.ref('users/' + c.user.uid).once('value');
-          if (!s.exists()) await db.ref('users/' + c.user.uid).set({ name: c.user.displayName, email: c.user.email, createdAt: Date.now() });
-        } catch (e) {
-          toast(e.message || 'Google login failed', true);
-        } finally { btns.forEach(b => { b.disabled = false; }); _googleAuthInProgress = false; }
-      }}
-    ]);
 };
 async function sendResetEmail() {
   const email = document.getElementById('resetEmail').value.trim();
