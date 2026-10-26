@@ -33,6 +33,30 @@ def ghBin = isWindows
     ? "${System.getProperty('user.home')}/.tools/bin/gh"
     : '/home/mhasanbogura/gh-cli/bin/gh'
 
+// ---------------------------------------------------------------------------
+// Pinned signing key
+// Every APK is signed with this one keystore, kept inside the project (synced
+// through Google Drive) so the signing identity is the same on every machine.
+// It is the same debug key that signs the App Store app.
+// The build refuses to run if the file is missing or if its certificate is not
+// the pinned one, so the key can never silently change again.
+// NOTE: this replaced the original Linux ~/.android/debug.keystore key on
+// 2026-10-26 (that file was unreachable), so apps signed with the old key must
+// be uninstalled once before installing builds signed with this one.
+// ---------------------------------------------------------------------------
+def pinnedKeystore = file("${rootDir}/keystore/debug.keystore")
+def pinnedFingerprint = '2739ef853f3cf1a1e2eec1378a51971186e654f508f62a774a654adec0caf59d'
+def pinnedAlias = 'androiddebugkey'
+def pinnedPassword = 'android'
+
+def keystoreFingerprint = { File keystore ->
+    def ks = java.security.KeyStore.getInstance('JKS')
+    keystore.withInputStream { ks.load(it, pinnedPassword.toCharArray()) }
+    def cert = ks.getCertificate(pinnedAlias)
+    java.security.MessageDigest.getInstance('SHA-256')
+        .digest(cert.encoded).encodeHex().toString()
+}
+
 android {
     namespace 'com.mahmuduls.metermanager'
     compileSdk 34
@@ -45,9 +69,37 @@ android {
         versionName newVn
     }
 
+    signingConfigs {
+        pinned {
+            if (!pinnedKeystore.exists()) {
+                throw new GradleException(
+                    "Pinned signing keystore is missing:\n" +
+                    "  ${pinnedKeystore}\n" +
+                    "Restore it from 'C:\\Google Drive\\mahmudulhasandhk70\\OpenCode\\App Store\\debug.keystore'.\n" +
+                    "Every build must use that key - never generate a new one.")
+            }
+            def actual = keystoreFingerprint(pinnedKeystore)
+            if (actual != pinnedFingerprint) {
+                throw new GradleException(
+                    "The keystore at ${pinnedKeystore} is not the pinned signing key.\n" +
+                    "  expected SHA-256: ${pinnedFingerprint}\n" +
+                    "  found    SHA-256: ${actual}\n" +
+                    "Refusing to build with a different signing identity.")
+            }
+            storeFile pinnedKeystore
+            storePassword pinnedPassword
+            keyAlias pinnedAlias
+            keyPassword pinnedPassword
+        }
+    }
+
     buildTypes {
+        debug {
+            signingConfig signingConfigs.pinned
+        }
         release {
             minifyEnabled false
+            signingConfig signingConfigs.pinned
         }
     }
 
