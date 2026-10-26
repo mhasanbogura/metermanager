@@ -23,6 +23,14 @@
           }
         },
         {
+          "client_id": "1034014653431-fmf7p1seoafi37r3vpdfeddjksf1eke0.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.mahmuduls.metermanager",
+            "certificate_hash": "6a5813914c82e60ba152dc0c9db0f0c43f08c124"
+          }
+        },
+        {
           "client_id": "1034014653431-gfluor3kopu8i3t329av99g706ekvpup.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
