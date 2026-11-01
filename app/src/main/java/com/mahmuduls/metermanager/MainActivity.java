@@ -1037,6 +1037,14 @@ public class MainActivity extends Activity {
             install.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
             install.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             startActivity(install);
+            // After triggering installation, cleanup the file after a delay
+            new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                try {
+                    dm.remove(downloadId);
+                } catch (Exception e) {
+                    Log.e(TAG, "Failed to cleanup downloaded APK", e);
+                }
+            }, 60000); // 60 seconds delay
         } catch (Exception e) {
             Log.e(TAG, "install apk error", e);
             webView.evaluateJavascript("if(window.toast) window.toast('Install failed: " +
