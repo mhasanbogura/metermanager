@@ -75,7 +75,7 @@ const I18N = {
     'settings.perm': 'Enable notifications', 'settings.perm.granted': 'Notifications enabled',
     'settings.update': 'Check for Updates', 'settings.update.title': 'Update App', 'settings.update.new': 'A new version is available ({v})',
     'settings.update.current': 'Current: {v} (build {b})', 'settings.update.download': 'Download & Install',
-    'settings.update.no_new': 'You are using latest version.', 'settings.update.downloading': 'Downloading update...',
+    'settings.update.no_new': 'You are using the latest version.', 'settings.update.downloading': 'Downloading update...',
     'settings.update.installed': 'Download complete. Tap Install on the system prompt to update.', 'settings.update.failed': 'Update failed: {e}',
     'help.q1': 'How do I add a meter?', 'help.a1': 'Open Home, tap Add meter, choose DESCO, then enter your DESCO prepaid account number (8 digits) or meter number (12 digits). If it exists in the DESCO database, its info will load.',
     'help.q2': 'Why does it say "Account No. does not exist"?', 'help.a2': 'The number was not found in the official DESCO prepaid database. Check the number printed on your meter, bill or receipt and try again.',
@@ -1858,7 +1858,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.66'} (build ${'643'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.67'} (build ${'646'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
