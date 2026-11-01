@@ -1828,6 +1828,11 @@ function renderSettings() {
     <div class="sett-section">
       <div class="sett-section-title">MORE</div>
       <div class="sett-section-card">
+        <div class="sett-item" id="btnUpdateApp" onclick="window.onForcedUpdateClick()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="opacity:.6"><path d="M17 3l-5 5 5 5V1h-2v14h-2V2l-5-5-5 5v16h2v-4h14v4h2V3z"/></svg>
+          <span style="flex:1">${esc(t('settings.update.title'))}</span>
+          <svg class="sett-chevron" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
+        </div>
         ${(window.NescoBridge && window.NescoBridge.shareText) ? `
         <div class="sett-item" onclick="window._settingsShare()">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="opacity:.6"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/></svg>
@@ -1849,16 +1854,11 @@ function renderSettings() {
           <span style="flex:1">${esc(t('settings.contact'))}</span>
           <svg class="sett-chevron" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
         </div>
-        <div class="sett-item" id="btnUpdateApp" onclick="window.onForcedUpdateClick()">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="opacity:.6"><path d="M17 3l-5 5 5 5V1h-2v14h-2V2l-5-5-5 5v16h2v-4h14v4h2V3z"/></svg>
-          <span style="flex:1">${esc(t('settings.update.title'))}</span>
-          <svg class="sett-chevron" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
-        </div>
       </div>
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.58'} (build ${'619'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.59'} (build ${'622'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
