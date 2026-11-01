@@ -1829,7 +1829,7 @@ function renderSettings() {
       <div class="sett-section-title">MORE</div>
       <div class="sett-section-card">
         <div class="sett-item" id="btnUpdateApp" onclick="window.onForcedUpdateClick()">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="opacity:.6"><path d="M17 3l-5 5 5 5V1h-2v14h-2V2l-5-5-5 5v16h2v-4h14v4h2V3z"/></svg>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="opacity:.6"><path d="M17.65 6.35A7.95 7.95 0 0 0 12 4a8 8 0 1 0 7.73 10h-2.08A6 6 0 1 1 12 6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
           <span style="flex:1">${esc(t('settings.update.title'))}</span>
           <svg class="sett-chevron" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
         </div>
@@ -1858,7 +1858,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.59'} (build ${'622'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.60'} (build ${'625'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
