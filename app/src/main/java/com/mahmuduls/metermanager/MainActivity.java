@@ -35,6 +35,12 @@ import java.nio.charset.StandardCharsets;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import android.app.DownloadManager;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.IntentFilter;
+import android.database.Cursor;
+
 public class MainActivity extends Activity {
     private WebView webView;
     private static final String TAG = "MeterManager";
@@ -49,6 +55,8 @@ public class MainActivity extends Activity {
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private String pendingSaveContent;
     private GoogleSignInClient googleSignInClient;
+    private long pendingDownloadId = -1;
+    private BroadcastReceiver updateReceiver;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -91,6 +99,22 @@ public class MainActivity extends Activity {
                 .requestEmail()
                 .build();
         googleSignInClient = GoogleSignIn.getClient(this, gso);
+
+        /* Receiver that fires when the DownloadManager finishes downloading the
+           Meter Manager update APK, then triggers silent installation. */
+        updateReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                if (DownloadManager.ACTION_DOWNLOAD_COMPLETE.equals(intent.getAction())) {
+                    long id = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1);
+                    if (id == pendingDownloadId && id > 0) {
+                        installApk(id);
+                        pendingDownloadId = -1;
+                    }
+                }
+            }
+        };
+        registerReceiver(updateReceiver, new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE));
 
         webView.setWebChromeClient(new WebChromeClient() {
             @Override
@@ -819,6 +843,26 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public void downloadAndInstallApk(String urlStr) {
+            mainHandler.post(() -> {
+                try {
+                    DownloadManager.Request request = new DownloadManager.Request(Uri.parse(urlStr));
+                    request.setTitle("Meter Manager Update");
+                    request.setDescription("Downloading latest version...");
+                    request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+                    request.setDestinationInExternalFilesDir(MainActivity.this, android.os.Environment.DIRECTORY_DOWNLOADS, "MeterManager-update.apk");
+                    DownloadManager dm = (DownloadManager) getSystemService(DOWNLOAD_SERVICE);
+                    if (dm != null) {
+                        pendingDownloadId = dm.enqueue(request);
+                        webView.evaluateJavascript("if(window.toast) window.toast('Downloading update...', false);", null);
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "Download update error", e);
+                    webView.evaluateJavascript("if(window.toast) window.toast('Update download failed', true);", null);
+                }
+            });
+        }
+        @JavascriptInterface
         public void loadFileWithPicker() {
             mainHandler.post(() -> {
                 Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
@@ -958,9 +1002,11 @@ public class MainActivity extends Activity {
     }
 
     @Override
-    protected void onResume() {
-        super.onResume();
-        pushThemeToWebView();
+    protected void onDestroy() {
+        super.onDestroy();
+        if (updateReceiver != null) {
+            try { unregisterReceiver(updateReceiver); } catch (Exception e) {}
+        }
     }
 
     @Override
@@ -970,6 +1016,27 @@ public class MainActivity extends Activity {
         if (intent != null && intent.getData() != null) {
             Uri uri = intent.getData();
             webView.loadUrl(WEB_URL);
+        }
+    }
+
+    private void installApk(long downloadId) {
+        try {
+            DownloadManager dm = (DownloadManager) getSystemService(DOWNLOAD_SERVICE);
+            if (dm == null) return;
+            Uri uri = dm.getUriForDownloadedFile(downloadId);
+            if (uri == null) {
+                webView.evaluateJavascript("if(window.toast) window.toast('Download failed. File not found.', true);", null);
+                return;
+            }
+            Intent install = new Intent(Intent.ACTION_VIEW);
+            install.setDataAndType(uri, "application/vnd.android.package-archive");
+            install.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            install.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(install);
+        } catch (Exception e) {
+            Log.e(TAG, "install apk error", e);
+            webView.evaluateJavascript("if(window.toast) window.toast('Install failed: " +
+                e.getMessage().replace("'", "\\\\'") + "', true);", null);
         }
     }
 

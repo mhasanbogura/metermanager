@@ -73,6 +73,10 @@ const I18N = {
     'settings.data': 'Meter data', 'settings.data.note': 'Your meters are stored only in this browser (localStorage) and are never sent to any server other than the official DESCO portal API.',
     'settings.clear': 'Remove all meters & reset', 'settings.cleared': 'All meter data cleared.',
     'settings.perm': 'Enable notifications', 'settings.perm.granted': 'Notifications enabled',
+    'settings.update': 'Check for Updates', 'settings.update.title': 'Update App', 'settings.update.new': 'A new version is available ({v})',
+    'settings.update.current': 'Current: {v} (build {b})', 'settings.update.download': 'Download & Install',
+    'settings.update.no_new': 'No update available.', 'settings.update.downloading': 'Downloading update...',
+    'settings.update.installed': 'Download complete. Tap Install on the system prompt to update.', 'settings.update.failed': 'Update failed: {e}',
     'help.q1': 'How do I add a meter?', 'help.a1': 'Open Home, tap Add meter, choose DESCO, then enter your DESCO prepaid account number (8 digits) or meter number (12 digits). If it exists in the DESCO database, its info will load.',
     'help.q2': 'Why does it say "Account No. does not exist"?', 'help.a2': 'The number was not found in the official DESCO prepaid database. Check the number printed on your meter, bill or receipt and try again.',
     'help.q3': 'Is my data safe?', 'help.a3': 'Yes. Your meter numbers stay in your browser only. All meter data is fetched live from the official DESCO portal and is never stored by this app.',
@@ -1845,11 +1849,16 @@ function renderSettings() {
           <span style="flex:1">${esc(t('settings.contact'))}</span>
           <svg class="sett-chevron" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
         </div>
+        <div class="sett-item" id="btnUpdateApp" onclick="window.onForcedUpdateClick()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="opacity:.6"><path d="M17 3l-5 5 5 5V1h-2v14h-2V2l-5-5-5 5v16h2v-4h14v4h2V3z"/></svg>
+          <span style="flex:1">${esc(t('settings.update.title'))}</span>
+          <svg class="sett-chevron" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
+        </div>
       </div>
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.55'} (build ${'610'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.58'} (build ${'619'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
@@ -1985,6 +1994,43 @@ window._settingsContact = async function(el) {
   html += '</div>';
   openDialog('', html, []);
 };
+
+/* Check if a newer APK is available from the version manifest hosted on
+   GitHub Pages. If a newer version exists, the "Update App" button in Settings
+   > MORE becomes active and onForcedUpdateClick() downloads & installs it.
+   The developer maintains version.json when releasing a new build. */
+var _updateInfo = null;
+async function checkAppUpdate() {
+  try {
+    var res = await fetch('version.json?v=' + Date.now());
+    if (!res.ok) return;
+    _updateInfo = await res.json();
+    var latest = parseInt(_updateInfo.latestCode || 0);
+    var current = parseInt(_updateInfo.currentCode || 610);
+    if (latest > current && _updateInfo.apkDownloadUrl) {
+      var btn = document.getElementById('btnUpdateApp');
+      if (btn) {
+        btn.onclick = window.onForcedUpdateClick;
+        var span = btn.querySelector('span');
+        if (span) span.textContent = t('settings.update.new', { v: _updateInfo.latestName || '' });
+      }
+    }
+  } catch (e) { /* update check is optional; fail silently */ }
+}
+
+window.onForcedUpdateClick = function() {
+  if (!_updateInfo || !_updateInfo.apkDownloadUrl) {
+    toast(t('settings.update.no_new') || 'No update available.', true);
+    return;
+  }
+  toast(t('settings.update.downloading') || 'Downloading update...', false);
+  if (window.NescoBridge && typeof window.NescoBridge.downloadAndInstallApk === 'function') {
+    window.NescoBridge.downloadAndInstallApk(_updateInfo.apkDownloadUrl);
+  } else {
+    try { location.href = _updateInfo.apkDownloadUrl; } catch(e) {}
+  }
+};
+
 function applyLang() {
   langs = I18N[state.settings.lang] || I18N.en;
   document.documentElement.lang = state.settings.lang;
@@ -2353,6 +2399,8 @@ async function boot() {
     }
   }
   try { await db.enablePersistence({ synchronizeTabs: true }); } catch {}
+  /* Check if a newer APK is available (sets up the Update App button if so). */
+  checkAppUpdate();
 }
 document.addEventListener('DOMContentLoaded', boot);
 
