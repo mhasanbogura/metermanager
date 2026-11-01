@@ -75,7 +75,7 @@ const I18N = {
     'settings.perm': 'Enable notifications', 'settings.perm.granted': 'Notifications enabled',
     'settings.update': 'Check for Updates', 'settings.update.title': 'Update App', 'settings.update.new': 'A new version is available ({v})',
     'settings.update.current': 'Current: {v} (build {b})', 'settings.update.download': 'Download & Install',
-    'settings.update.no_new': 'No update available.', 'settings.update.downloading': 'Downloading update...',
+    'settings.update.no_new': 'You are using latest version.', 'settings.update.downloading': 'Downloading update...',
     'settings.update.installed': 'Download complete. Tap Install on the system prompt to update.', 'settings.update.failed': 'Update failed: {e}',
     'help.q1': 'How do I add a meter?', 'help.a1': 'Open Home, tap Add meter, choose DESCO, then enter your DESCO prepaid account number (8 digits) or meter number (12 digits). If it exists in the DESCO database, its info will load.',
     'help.q2': 'Why does it say "Account No. does not exist"?', 'help.a2': 'The number was not found in the official DESCO prepaid database. Check the number printed on your meter, bill or receipt and try again.',
@@ -1858,7 +1858,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.65'} (build ${'640'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.66'} (build ${'643'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
@@ -2006,27 +2006,11 @@ async function checkAppUpdate() {
     if (!res.ok) return;
     _updateInfo = await res.json();
     var latest = parseInt(_updateInfo.latestCode || 0);
-    // Note: BUILD_CODE is injected by the gradle build script in index.html
-    var current = typeof BUILD_CODE !== 'undefined' ? BUILD_CODE : 634;
-    if (latest > current && _updateInfo.apkDownloadUrl) {
-      // Show forced update popup immediately
-      openDialog(
-        t('settings.update.title'),
-        `<p class="body-text">${esc(t('settings.update.new', { v: _updateInfo.latestName || '' }))}</p>`,
-        [{
-          key: 'update',
-          label: t('settings.update.download'),
-          cls: 'primary',
-          fn: () => {
-            window.onForcedUpdateClick();
-          }
-        }],
-        false // canClose = false
-      );
+    var current = typeof BUILD_CODE !== 'undefined' ? BUILD_CODE : 640;
 
+    if (latest > current && _updateInfo.apkDownloadUrl) {
       var btn = document.getElementById('btnUpdateApp');
       if (btn) {
-        btn.onclick = window.onForcedUpdateClick;
         var span = btn.querySelector('span');
         if (span) span.textContent = t('settings.update.new', { v: _updateInfo.latestName || '' });
       }
@@ -2034,16 +2018,42 @@ async function checkAppUpdate() {
   } catch (e) { /* update check is optional; fail silently */ }
 }
 
-window.onForcedUpdateClick = function() {
-  if (!_updateInfo || !_updateInfo.apkDownloadUrl) {
-    toast(t('settings.update.no_new') || 'No update available.', true);
-    return;
-  }
-  toast(t('settings.update.downloading') || 'Downloading update...', false);
-  if (window.NescoBridge && typeof window.NescoBridge.downloadAndInstallApk === 'function') {
-    window.NescoBridge.downloadAndInstallApk(_updateInfo.apkDownloadUrl);
-  } else {
-    try { location.href = _updateInfo.apkDownloadUrl; } catch(e) {}
+window.onForcedUpdateClick = async function() {
+  toast(t('settings.update.checking') || 'Checking for updates...', false);
+
+  try {
+    var res = await fetch('version.json?v=' + Date.now());
+    if (!res.ok) throw new Error('Failed to fetch');
+    var info = await res.json();
+    var latest = parseInt(info.latestCode || 0);
+    var current = typeof BUILD_CODE !== 'undefined' ? BUILD_CODE : 640;
+
+    if (latest > current && info.apkDownloadUrl) {
+      _updateInfo = info;
+      openDialog(
+        t('settings.update.title'),
+        `<p class="body-text">${esc(t('settings.update.new', { v: info.latestName || '' }))}</p>`,
+        [{
+          key: 'update',
+          label: t('settings.update.download'),
+          cls: 'primary',
+          fn: () => {
+            closeDialog();
+            toast(t('settings.update.downloading') || 'Downloading update...', false);
+            if (window.NescoBridge && typeof window.NescoBridge.downloadAndInstallApk === 'function') {
+              window.NescoBridge.downloadAndInstallApk(info.apkDownloadUrl);
+            } else {
+              try { location.href = info.apkDownloadUrl; } catch(e) {}
+            }
+          }
+        }],
+        false
+      );
+    } else {
+      toast(t('settings.update.no_new') || 'No update available.', true);
+    }
+  } catch (e) {
+    toast(t('settings.update.failed', { e: e.message }) || 'Update check failed.', true);
   }
 };
 
