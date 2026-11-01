@@ -580,7 +580,7 @@ async function refreshAllMeters(opts = {}) {
 }
 
 /* ================= dialogs ================= */
-function openDialog(title, bodyHtml, actions = []) {
+function openDialog(title, bodyHtml, actions = [], canClose = true) {
   $('#dlgTitle').textContent = title;
   $('#dlgBody').innerHTML = bodyHtml;
   $('#dlgActions').innerHTML = actions.map(a => {
@@ -596,7 +596,7 @@ function openDialog(title, bodyHtml, actions = []) {
     if (act && act.fn) act.fn(btn);
   };
   const dlg = $('#dlg');
-  dlg.onclick = e => { if (e.target === dlg) closeDialog(); };
+  dlg.onclick = e => { if (canClose && e.target === dlg) closeDialog(); };
   dlg.querySelectorAll('.btn').forEach(b => {
     b.ontouchstart = () => b.classList.add('pressed');
     b.ontouchend = () => b.classList.remove('pressed');
@@ -1858,7 +1858,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.63'} (build ${'634'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.64'} (build ${'637'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
@@ -2006,8 +2006,24 @@ async function checkAppUpdate() {
     if (!res.ok) return;
     _updateInfo = await res.json();
     var latest = parseInt(_updateInfo.latestCode || 0);
-    var current = parseInt(_updateInfo.currentCode || 610);
+    // Note: BUILD_CODE is injected by the gradle build script in index.html
+    var current = typeof BUILD_CODE !== 'undefined' ? BUILD_CODE : 634;
     if (latest > current && _updateInfo.apkDownloadUrl) {
+      // Show forced update popup immediately
+      openDialog(
+        t('settings.update.title'),
+        `<p class="body-text">${esc(t('settings.update.new', { v: _updateInfo.latestName || '' }))}</p>`,
+        [{
+          key: 'update',
+          label: t('settings.update.download'),
+          cls: 'primary',
+          fn: () => {
+            window.onForcedUpdateClick();
+          }
+        }],
+        false // canClose = false
+      );
+
       var btn = document.getElementById('btnUpdateApp');
       if (btn) {
         btn.onclick = window.onForcedUpdateClick;
