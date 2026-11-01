@@ -1858,7 +1858,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.67'} (build ${'646'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.68'} (build ${'649'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
@@ -2006,7 +2006,7 @@ async function checkAppUpdate() {
     if (!res.ok) return;
     _updateInfo = await res.json();
     var latest = parseInt(_updateInfo.latestCode || 0);
-    var current = typeof BUILD_CODE !== 'undefined' ? BUILD_CODE : 640;
+    var current = typeof BUILD_CODE !== 'undefined' ? BUILD_CODE : 646;
 
     if (latest > current && _updateInfo.apkDownloadUrl) {
       var btn = document.getElementById('btnUpdateApp');
@@ -2026,7 +2026,7 @@ window.onForcedUpdateClick = async function() {
     if (!res.ok) throw new Error('Failed to fetch');
     var info = await res.json();
     var latest = parseInt(info.latestCode || 0);
-    var current = typeof BUILD_CODE !== 'undefined' ? BUILD_CODE : 640;
+    var current = typeof BUILD_CODE !== 'undefined' ? BUILD_CODE : 646;
 
     if (latest > current && info.apkDownloadUrl) {
       _updateInfo = info;
@@ -2456,7 +2456,7 @@ document.addEventListener('DOMContentLoaded', boot);
       label.textContent = t('home.refreshing');
       pill.classList.add('spinning');
       show(14);
-      refreshAllMeters().then(() => { renderHome(); hide(); });
+      refreshAllMeters().then(() => { renderHome(); checkAppUpdate(); hide(); });
     }
   }, { passive: true });
   home.addEventListener('touchend', () => { if (pulling) { pulling = false; hide(); } }, { passive: true });
