@@ -56,7 +56,17 @@ public class MainActivity extends Activity {
     private String pendingSaveContent;
     private GoogleSignInClient googleSignInClient;
     private long pendingDownloadId = -1;
+    private String pendingApkPath;
     private BroadcastReceiver updateReceiver;
+
+    /* ---------- Google Drive app-store scanning (same system as App Store) ----------
+       The release APKs are published to a shared Google Drive folder. The folder is
+       world readable, so the public Drive REST API only needs an API key - no OAuth
+       consent is involved. This mirrors what the App Store app does when it scans
+       its "Android" subfolder for newer builds. */
+    private static final String DRIVE_API_KEY = "AIzaSyAX7T6Vd75LnhQg15IydOLEYqjfGUT8TO8";
+    private static final String DRIVE_ROOT_FOLDER_ID = "1PBrhSIvDk0QrgNS6XeTeA1RDLFPeTqKV";
+    private static final String DRIVE_ANDROID_SUBFOLDER = "Android";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -87,6 +97,10 @@ public class MainActivity extends Activity {
         settings.setUserAgentString("Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36");
 
         webView.addJavascriptInterface(new NescoBridge(), "NescoBridge");
+
+        /* Remove any APK left behind by a previous update so the next download
+           starts from a clean cache. */
+        sweepDownloadedApks();
 
         /* requestServerAuthCode(..., true) makes Google re-prompt its own consent
            screen ("You're signing in to Meter Manager" + privacy policy / ToS) after
@@ -848,24 +862,40 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public void downloadAndInstallApk(String urlStr) {
-            mainHandler.post(() -> {
-                try {
-                    DownloadManager.Request request = new DownloadManager.Request(Uri.parse(urlStr));
-                    request.setTitle("Meter Manager Update");
-                    request.setDescription("Downloading latest version...");
-                    request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
-                    request.setDestinationInExternalFilesDir(MainActivity.this, android.os.Environment.DIRECTORY_DOWNLOADS, "MeterManager-update.apk");
-                    DownloadManager dm = (DownloadManager) getSystemService(DOWNLOAD_SERVICE);
-                    if (dm != null) {
-                        pendingDownloadId = dm.enqueue(request);
-                        webView.evaluateJavascript("if(window.toast) window.toast('Downloading update...', false);", null);
-                    }
-                } catch (Exception e) {
-                    Log.e(TAG, "Download update error", e);
-                    webView.evaluateJavascript("if(window.toast) window.toast('Update download failed', true);", null);
-                }
-            });
+            downloadApkInternal(urlStr, "MeterManager-update.apk");
         }
+
+        /* Asks the native Drive scanner whether a newer APK of this app is present in
+           the release folder. The JSON result is delivered to
+           window.__driveUpdateResult(cbId, json). */
+        @JavascriptInterface
+        public void scanDriveForUpdate(final String cbId) {
+            new Thread(() -> {
+                String result;
+                try {
+                    result = scanDriveForUpdateJson();
+                } catch (Exception e) {
+                    Log.e(TAG, "Drive update scan failed", e);
+                    result = "{\"ok\":false,\"error\":\"" + escapeJsString(String.valueOf(e.getMessage())) + "\"}";
+                }
+                final String payload = escapeJsString(result);
+                mainHandler.post(() -> webView.evaluateJavascript(
+                    "(function(){if(typeof window.__driveUpdateResult==='function'){window.__driveUpdateResult('"
+                        + cbId + "','" + payload + "');}})()",
+                    null));
+            }).start();
+        }
+
+        /* Downloads the APK that the Drive scan found and starts the installer. */
+        @JavascriptInterface
+        public void downloadDriveUpdate(String fileId, String fileName) {
+            if (fileId == null || fileId.trim().isEmpty()) {
+                webView.evaluateJavascript("if(window.toast) window.toast('Update file not found', true);", null);
+                return;
+            }
+            downloadApkInternal(driveDownloadUrl(fileId), fileName);
+        }
+
         @JavascriptInterface
         public void loadFileWithPicker() {
             mainHandler.post(() -> {
@@ -1023,6 +1053,210 @@ public class MainActivity extends Activity {
         }
     }
 
+    /* ================= Google Drive update scanning ================= */
+
+    private static String escapeJsString(String s) {
+        if (s == null) return "";
+        return s.replace("\\", "\\\\").replace("'", "\\'").replace("\"", "\\\"")
+                .replace("\n", "\\n").replace("\r", "");
+    }
+
+    private String driveDownloadUrl(String fileId) {
+        return "https://www.googleapis.com/drive/v3/files/" + fileId + "?alt=media&key=" + DRIVE_API_KEY;
+    }
+
+    private String driveHttpGet(String urlStr) throws Exception {
+        HttpURLConnection conn = (HttpURLConnection) new URL(urlStr).openConnection();
+        conn.setConnectTimeout(15000);
+        conn.setReadTimeout(20000);
+        conn.setRequestProperty("Accept", "application/json");
+        try {
+            int code = conn.getResponseCode();
+            java.io.InputStream is = (code >= 400) ? conn.getErrorStream() : conn.getInputStream();
+            StringBuilder sb = new StringBuilder();
+            if (is != null) {
+                BufferedReader br = new BufferedReader(new InputStreamReader(is, "UTF-8"));
+                String line;
+                while ((line = br.readLine()) != null) sb.append(line);
+                br.close();
+            }
+            if (code >= 400) throw new Exception("Drive HTTP " + code);
+            return sb.toString();
+        } finally {
+            conn.disconnect();
+        }
+    }
+
+    private String driveListUrl(String query) throws Exception {
+        return "https://www.googleapis.com/drive/v3/files?q=" + URLEncoder.encode(query, "UTF-8")
+            + "&fields=" + URLEncoder.encode("files(id,name,mimeType,modifiedTime),nextPageToken", "UTF-8")
+            + "&pageSize=1000&orderBy=" + URLEncoder.encode("modifiedTime desc", "UTF-8")
+            + "&key=" + DRIVE_API_KEY;
+    }
+
+    /** Locates the "Android" subfolder of the release folder (falls back to the root). */
+    private String driveReleaseFolderId() {
+        try {
+            String query = "'" + DRIVE_ROOT_FOLDER_ID + "' in parents and trashed=false"
+                + " and mimeType='application/vnd.google-apps.folder' and name='" + DRIVE_ANDROID_SUBFOLDER + "'";
+            org.json.JSONArray files = new org.json.JSONObject(driveHttpGet(driveListUrl(query))).optJSONArray("files");
+            if (files != null && files.length() > 0) {
+                String id = files.getJSONObject(0).optString("id", "");
+                if (!id.isEmpty()) return id;
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Drive release folder lookup failed", e);
+        }
+        return DRIVE_ROOT_FOLDER_ID;
+    }
+
+    private static int parseIntOr(String s, int fallback) {
+        try { return Integer.parseInt(s.trim()); } catch (Exception e) { return fallback; }
+    }
+
+    /** Compares dotted version names numerically; returns >0 when a is newer. */
+    private static int compareVersions(String a, String b) {
+        String[] ap = (a == null ? "" : a).split("\\.");
+        String[] bp = (b == null ? "" : b).split("\\.");
+        int len = Math.max(ap.length, bp.length);
+        for (int i = 0; i < len; i++) {
+            int av = i < ap.length ? parseIntOr(ap[i], 0) : 0;
+            int bv = i < bp.length ? parseIntOr(bp[i], 0) : 0;
+            if (av != bv) return av > bv ? 1 : -1;
+        }
+        return 0;
+    }
+
+    /**
+     * Lists the release folder, picks the newest Meter Manager APK (by build number,
+     * then version name) and compares it with the installed package.
+     */
+    private String scanDriveForUpdateJson() throws Exception {
+        String pkg = getPackageName();
+        int installedCode = 0;
+        String installedName = "";
+        try {
+            android.content.pm.PackageInfo pi = getPackageManager().getPackageInfo(pkg, 0);
+            installedCode = (int) (Build.VERSION.SDK_INT >= 28 ? pi.getLongVersionCode() : pi.versionCode);
+            installedName = pi.versionName == null ? "" : pi.versionName;
+        } catch (Exception e) {
+            Log.w(TAG, "Cannot read installed version", e);
+        }
+
+        String folderId = driveReleaseFolderId();
+        String query = "'" + folderId + "' in parents and trashed=false and name contains 'Meter Manager'";
+
+        String bestId = null, bestFileName = "", bestVersion = "";
+        int bestCode = -1;
+        String pageToken = null;
+        do {
+            String url = driveListUrl(query) + (pageToken == null
+                ? "" : "&pageToken=" + URLEncoder.encode(pageToken, "UTF-8"));
+            org.json.JSONObject page = new org.json.JSONObject(driveHttpGet(url));
+            org.json.JSONArray files = page.optJSONArray("files");
+            if (files != null) {
+                for (int i = 0; i < files.length(); i++) {
+                    org.json.JSONObject f = files.getJSONObject(i);
+                    String name = f.optString("name", "");
+                    String lower = name.toLowerCase();
+                    if (!lower.endsWith(".apk")) continue;
+                    if (!lower.contains(pkg) && !lower.startsWith("meter manager")) continue;
+
+                    java.util.regex.Matcher vm =
+                        java.util.regex.Pattern.compile("_v([0-9][0-9.]*)", java.util.regex.Pattern.CASE_INSENSITIVE).matcher(name);
+                    String versionName = vm.find() ? vm.group(1) : "";
+                    java.util.regex.Matcher bm =
+                        java.util.regex.Pattern.compile("_(?:build|buid)_(\\d+)", java.util.regex.Pattern.CASE_INSENSITIVE).matcher(name);
+                    int code = bm.find() ? parseIntOr(bm.group(1), -1) : -1;
+
+                    boolean better;
+                    if (bestId == null) better = true;
+                    else if (code != bestCode) better = code > bestCode;
+                    else better = compareVersions(versionName, bestVersion) > 0;
+
+                    if (better) {
+                        bestId = f.optString("id", "");
+                        bestFileName = name;
+                        bestVersion = versionName;
+                        bestCode = code;
+                    }
+                }
+            }
+            String next = page.optString("nextPageToken", "");
+            pageToken = next.isEmpty() ? null : next;
+        } while (pageToken != null);
+
+        if (bestId == null || bestId.isEmpty()) {
+            return "{\"ok\":true,\"available\":false,\"installedCode\":" + installedCode
+                + ",\"installedName\":\"" + escapeJsString(installedName)
+                + "\",\"reason\":\"no_apk_in_drive\"}";
+        }
+
+        boolean newer = bestCode > 0
+            ? bestCode > installedCode
+            : compareVersions(bestVersion, installedName) > 0;
+
+        return "{\"ok\":true,\"available\":" + newer
+            + ",\"installedCode\":" + installedCode
+            + ",\"installedName\":\"" + escapeJsString(installedName)
+            + "\",\"latestName\":\"" + escapeJsString(bestVersion)
+            + "\",\"latestCode\":" + bestCode
+            + ",\"fileName\":\"" + escapeJsString(bestFileName)
+            + "\",\"fileId\":\"" + escapeJsString(bestId)
+            + "\",\"downloadUrl\":\"" + escapeJsString(driveDownloadUrl(bestId))
+            + "\"}";
+    }
+
+    /** Downloads an APK through DownloadManager; the install receiver picks it up. */
+    private void downloadApkInternal(final String urlStr, final String fileName) {
+        mainHandler.post(() -> {
+            try {
+                String safe = (fileName == null || fileName.trim().isEmpty())
+                    ? "MeterManager-update.apk"
+                    : fileName.trim().replaceAll("[^A-Za-z0-9._-]", "_");
+                if (!safe.toLowerCase().endsWith(".apk")) safe += ".apk";
+
+                java.io.File dir = getExternalFilesDir(android.os.Environment.DIRECTORY_DOWNLOADS);
+                if (dir != null) {
+                    java.io.File target = new java.io.File(dir, safe);
+                    if (target.exists() && !target.delete()) {
+                        Log.w(TAG, "Could not delete stale update file " + target);
+                    }
+                    pendingApkPath = target.getAbsolutePath();
+                }
+
+                DownloadManager.Request request = new DownloadManager.Request(Uri.parse(urlStr));
+                request.setTitle("Meter Manager Update");
+                request.setDescription("Downloading latest version...");
+                request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+                request.setDestinationInExternalFilesDir(MainActivity.this,
+                    android.os.Environment.DIRECTORY_DOWNLOADS, safe);
+                DownloadManager dm = (DownloadManager) getSystemService(DOWNLOAD_SERVICE);
+                if (dm == null) return;
+                pendingDownloadId = dm.enqueue(request);
+                webView.evaluateJavascript("if(window.toast) window.toast('Downloading update...', false);", null);
+            } catch (Exception e) {
+                Log.e(TAG, "Download update error", e);
+                webView.evaluateJavascript("if(window.toast) window.toast('Update download failed', true);", null);
+            }
+        });
+    }
+
+    /** Deletes APKs left in the app cache by earlier update attempts. */
+    private void sweepDownloadedApks() {
+        try {
+            java.io.File dir = getExternalFilesDir(android.os.Environment.DIRECTORY_DOWNLOADS);
+            if (dir == null || !dir.isDirectory()) return;
+            java.io.File[] files = dir.listFiles();
+            if (files == null) return;
+            for (java.io.File f : files) {
+                if (f.isFile() && f.getName().toLowerCase().endsWith(".apk")) f.delete();
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "APK cache sweep failed", e);
+        }
+    }
+
     private void installApk(long downloadId) {
         try {
             DownloadManager dm = (DownloadManager) getSystemService(DOWNLOAD_SERVICE);
@@ -1037,14 +1271,22 @@ public class MainActivity extends Activity {
             install.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
             install.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             startActivity(install);
-            // After triggering installation, cleanup the file after a delay
-            new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+
+            /* Once the system installer has had time to read the APK, drop both the
+               DownloadManager entry and the cached file so nothing is left behind. */
+            final String apkPath = pendingApkPath;
+            pendingApkPath = null;
+            mainHandler.postDelayed(() -> {
+                try { dm.remove(downloadId); } catch (Exception ignored) {}
                 try {
-                    dm.remove(downloadId);
+                    if (apkPath != null) {
+                        java.io.File f = new java.io.File(apkPath);
+                        if (f.exists()) f.delete();
+                    }
                 } catch (Exception e) {
-                    Log.e(TAG, "Failed to cleanup downloaded APK", e);
+                    Log.w(TAG, "Failed to delete cached APK", e);
                 }
-            }, 60000); // 60 seconds delay
+            }, 60000);
         } catch (Exception e) {
             Log.e(TAG, "install apk error", e);
             webView.evaluateJavascript("if(window.toast) window.toast('Install failed: " +

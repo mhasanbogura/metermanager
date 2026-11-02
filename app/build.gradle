@@ -107,17 +107,12 @@ android {
         pickFirst 'META-INF/DEPENDENCIES'
     }
 }
-
 dependencies {
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'androidx.webkit:webkit:1.8.0'
     implementation 'androidx.browser:browser:1.6.0'
     implementation 'com.google.firebase:firebase-auth:22.3.0'
     implementation 'com.google.android.gms:play-services-auth:21.3.0'
-    implementation 'com.google.android.gms:play-services-auth:21.0.0'
-    implementation 'com.google.api-client:google-api-client-android:2.2.0'
-    implementation 'com.google.apis:google-api-services-drive:v3-rev20230815-2.0.0'
-    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
 }
 
 task updateVersionProperties {

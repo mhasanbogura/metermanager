@@ -77,6 +77,7 @@ const I18N = {
     'settings.update.current': 'Current: {v} (build {b})', 'settings.update.download': 'Download & Install',
     'settings.update.no_new': 'You are using the latest version.', 'settings.update.downloading': 'Downloading update...',
     'settings.update.installed': 'Download complete. Tap Install on the system prompt to update.', 'settings.update.failed': 'Update failed: {e}',
+    'settings.update.checking': 'Checking Google Drive for updates...', 'settings.update.android_only': 'Updates are available in the Android app only.',
     'help.q1': 'How do I add a meter?', 'help.a1': 'Open Home, tap Add meter, choose DESCO, then enter your DESCO prepaid account number (8 digits) or meter number (12 digits). If it exists in the DESCO database, its info will load.',
     'help.q2': 'Why does it say "Account No. does not exist"?', 'help.a2': 'The number was not found in the official DESCO prepaid database. Check the number printed on your meter, bill or receipt and try again.',
     'help.q3': 'Is my data safe?', 'help.a3': 'Yes. Your meter numbers stay in your browser only. All meter data is fetched live from the official DESCO portal and is never stored by this app.',
@@ -158,6 +159,10 @@ const I18N = {
     'settings.language': 'ভাষা', 'settings.low_threshold': 'কম ব্যালেন্স সীমা', 'settings.low_threshold_hint': 'ডিফল্ট সীমা (টাকায়)',
     'settings.share': 'শেয়ার', 'settings.get_app': 'অ্যান্ড্রয়েড অ্যাপ নিন', 'settings.link_copied': 'লিংক কপি হয়েছে!', 'settings.import_export': 'মিটার ডেটা ইমপোর্ট/এক্সপোর্ট', 'settings.delete_all': 'সমস্ত মিটার মুছে ফেলুন',
     'settings.about': 'অ্যাপ সম্পর্কে', 'settings.contact': 'ডেভেলপারের সাথে যোগাযোগ করুন',
+    'settings.update': 'আপডেট দেখুন', 'settings.update.title': 'অ্যাপ আপডেট', 'settings.update.new': 'নতুন সংস্করণ পাওয়া গেছে ({v})',
+    'settings.update.current': 'বর্তমান: {v} (বিল্ড {b})', 'settings.update.download': 'ডাউনলোড ও ইনস্টল',
+    'settings.update.no_new': 'আপনি সর্বশেষ সংস্করণ ব্যবহার করছেন।', 'settings.update.downloading': 'আপডেট ডাউনলোড হচ্ছে...',
+    'settings.update.checking': 'Google Drive-এ আপডেট খোঁজা হচ্ছে...', 'settings.update.android_only': 'আপডেট শুধু Android অ্যাপে পাওয়া যায়।',
     'settings.no_desc': 'কোনো বর্ণনা পাওয়া যায়নি।', 'settings.no_contact': 'কোনো যোগাযোগের তথ্য পাওয়া যায়নি।',
     'detail.energy_amount': 'এনার্জি অ্যামাউন্ট', 'detail.energy_kwh': 'এনার্জি (kWh)', 'detail.vat_other': 'ভ্যাট ও অন্যান্য চার্জ',
     'home.low': 'ব্যালেন্স কম',
@@ -1858,7 +1863,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.70'} (build ${'655'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.72'} (build ${'661'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
@@ -1995,65 +2000,109 @@ window._settingsContact = async function(el) {
   openDialog('', html, []);
 };
 
-/* Check if a newer APK is available from the version manifest hosted on
-   GitHub Pages. If a newer version exists, the "Update App" button in Settings
-   > MORE becomes active and onForcedUpdateClick() downloads & installs it.
-   The developer maintains version.json when releasing a new build. */
+/* ================= app update · native Google Drive scan =================
+   Update availability is decided by the native Drive scanner (the same system
+   the App Store app uses): it lists the release folder in Google Drive, reads
+   the newest "Meter Manager_..._vX.Y.Z_build_NNN.apk" file and compares it with
+   the installed package. The browser build has no update channel, so nothing
+   runs there. */
 var _updateInfo = null;
-async function checkAppUpdate() {
-  try {
-    var res = await fetch('version.json?v=' + Date.now());
-    if (!res.ok) return;
-    _updateInfo = await res.json();
-    var latest = parseInt(_updateInfo.latestCode || 0);
-    var current = typeof BUILD_CODE !== 'undefined' ? BUILD_CODE : 646;
+var _driveScanSeq = 0;
+var _driveScanCbs = {};
 
-    if (latest > current && _updateInfo.apkDownloadUrl) {
-      var btn = document.getElementById('btnUpdateApp');
-      if (btn) {
-        var span = btn.querySelector('span');
-        if (span) span.textContent = t('settings.update.new', { v: _updateInfo.latestName || '' });
-      }
-    }
-  } catch (e) { /* update check is optional; fail silently */ }
+window.__driveUpdateResult = function (cbId, json) {
+  var cb = _driveScanCbs[cbId];
+  if (!cb) return;
+  delete _driveScanCbs[cbId];
+  var data = null;
+  try { data = (typeof json === 'string') ? JSON.parse(json) : json; } catch (e) { data = null; }
+  cb(data);
+};
+
+function hasNativeDriveScan() {
+  return !!(window.NescoBridge && typeof window.NescoBridge.scanDriveForUpdate === 'function');
+}
+
+/* Resolves with the scanner JSON, or null when unsupported / timed out. */
+function scanDriveForUpdate() {
+  return new Promise(function (resolve) {
+    if (!hasNativeDriveScan()) { resolve(null); return; }
+    var id = 'driveupd' + (++_driveScanSeq);
+    var done = false;
+    var timer = setTimeout(function () {
+      if (!done && _driveScanCbs[id]) { delete _driveScanCbs[id]; resolve(null); }
+    }, 25000);
+    _driveScanCbs[id] = function (data) {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      resolve(data);
+    };
+    try { window.NescoBridge.scanDriveForUpdate(id); }
+    catch (e) { clearTimeout(timer); delete _driveScanCbs[id]; resolve(null); }
+  });
+}
+
+function startUpdateDownload(info) {
+  toast(t('settings.update.downloading'), false);
+  if (window.NescoBridge && typeof window.NescoBridge.downloadDriveUpdate === 'function') {
+    window.NescoBridge.downloadDriveUpdate(info.fileId, info.fileName || '');
+  } else if (window.NescoBridge && typeof window.NescoBridge.downloadAndInstallApk === 'function') {
+    window.NescoBridge.downloadAndInstallApk(info.downloadUrl);
+  } else {
+    try { location.href = info.downloadUrl; } catch (e) {}
+  }
+}
+
+/* Forced (non-dismissible) update dialog — only shown when a newer build exists. */
+function showForcedUpdatePopup(info) {
+  _updateInfo = info;
+  openDialog(
+    t('settings.update.title'),
+    '<p class="body-text">' + esc(t('settings.update.new', { v: info.latestName || '' })) + '</p>' +
+    '<p class="body-text">' + esc(t('settings.update.current', { v: info.installedName || '', b: info.installedCode || '' })) + '</p>',
+    [{
+      key: 'update',
+      label: t('settings.update.download'),
+      cls: 'primary',
+      fn: function () { startUpdateDownload(info); }
+    }],
+    false
+  );
+}
+
+function setUpdateButtonLabel(info) {
+  var btn = document.getElementById('btnUpdateApp');
+  if (!btn) return;
+  var span = btn.querySelector('span');
+  if (!span) return;
+  span.textContent = (info && info.available)
+    ? t('settings.update.new', { v: info.latestName || '' })
+    : t('settings.update.title');
+}
+
+async function checkAppUpdate() {
+  if (!hasNativeDriveScan()) return;
+  var info = await scanDriveForUpdate();
+  if (!info || !info.ok) return;
+  setUpdateButtonLabel(info);
+  if (info.available) showForcedUpdatePopup(info);
 }
 
 window.onForcedUpdateClick = async function() {
-  toast(t('settings.update.checking') || 'Checking for updates...', false);
-
-  try {
-    var res = await fetch('version.json?v=' + Date.now());
-    if (!res.ok) throw new Error('Failed to fetch');
-    var info = await res.json();
-    var latest = parseInt(info.latestCode || 0);
-    var current = typeof BUILD_CODE !== 'undefined' ? BUILD_CODE : 646;
-
-    if (latest > current && info.apkDownloadUrl) {
-      _updateInfo = info;
-      openDialog(
-        t('settings.update.title'),
-        `<p class="body-text">${esc(t('settings.update.new', { v: info.latestName || '' }))}</p>`,
-        [{
-          key: 'update',
-          label: t('settings.update.download'),
-          cls: 'primary',
-          fn: () => {
-            closeDialog();
-            toast(t('settings.update.downloading') || 'Downloading update...', false);
-            if (window.NescoBridge && typeof window.NescoBridge.downloadAndInstallApk === 'function') {
-              window.NescoBridge.downloadAndInstallApk(info.apkDownloadUrl);
-            } else {
-              try { location.href = info.apkDownloadUrl; } catch(e) {}
-            }
-          }
-        }],
-        false
-      );
-    } else {
-      toast(t('settings.update.no_new') || 'No update available.', true);
-    }
-  } catch (e) {
-    toast(t('settings.update.failed', { e: e.message }) || 'Update check failed.', true);
+  if (!hasNativeDriveScan()) {
+    toast(t('settings.update.android_only'), true);
+    return;
+  }
+  toast(t('settings.update.checking'), false);
+  var info = await scanDriveForUpdate();
+  setUpdateButtonLabel(info);
+  if (info && info.ok && info.available) {
+    showForcedUpdatePopup(info);
+  } else if (info && info.ok) {
+    toast(t('settings.update.no_new'), true);
+  } else {
+    toast(t('settings.update.failed', { e: (info && info.error) || 'Drive scan failed' }), true);
   }
 };
 
