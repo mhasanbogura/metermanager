@@ -1223,6 +1223,7 @@ public class MainActivity extends Activity {
                         Log.w(TAG, "Could not delete stale update file " + target);
                     }
                     pendingApkPath = target.getAbsolutePath();
+                    getSharedPreferences("MeterManager", MODE_PRIVATE).edit().putString("pendingApkPath", pendingApkPath).apply();
                 }
 
                 DownloadManager.Request request = new DownloadManager.Request(Uri.parse(urlStr));
