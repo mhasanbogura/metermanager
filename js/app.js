@@ -1863,7 +1863,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.72'} (build ${'661'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.73'} (build ${'664'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
@@ -2082,6 +2082,8 @@ function setUpdateButtonLabel(info) {
 }
 
 async function checkAppUpdate() {
+  // Ensure we load state and cached meters/data first so nothing is lost
+  loadState();
   if (!hasNativeDriveScan()) return;
   var info = await scanDriveForUpdate();
   if (!info || !info.ok) return;
@@ -2090,6 +2092,7 @@ async function checkAppUpdate() {
 }
 
 window.onForcedUpdateClick = async function() {
+  loadState();
   if (!hasNativeDriveScan()) {
     toast(t('settings.update.android_only'), true);
     return;
