@@ -1873,7 +1873,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.85'} (build ${'700'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.86'} (build ${'703'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
@@ -2079,10 +2079,13 @@ function showForcedUpdatePopup(info) {
   // Use custom dialog to allow full-width button
   openDialog(
     t('settings.update.title'),
-    '<p class="body-text">' + esc(t('settings.update.new', { v: info.latestName || '' })) + '</p>',
+    `<div style="text-align:center;">
+       <p class="body-text"><strong>${esc(t('settings.update.title'))}</strong></p>
+       <p class="body-text">${esc(t('settings.update.new', { v: info.latestName || '' }))}</p>
+     </div>`,
     [{
       key: 'update',
-      label: t('settings.update.download'),
+      label: t('settings.update.download'), // "Download & Install"
       cls: 'primary',
       fn: function(btn) {
         // Change button to show progress
@@ -2094,7 +2097,7 @@ function showForcedUpdatePopup(info) {
           if (percent < 100) {
             btn.textContent = t('settings.update.downloading') + ' ' + percent + '%';
           } else {
-            btn.textContent = t('settings.update.installing');
+            btn.textContent = t('settings.update.installing') || 'Installing...';
           }
         });
       }
@@ -2105,7 +2108,11 @@ function showForcedUpdatePopup(info) {
   // Force button to be full width in CSS
   setTimeout(() => {
     const btn = $('#dlgActions .primary-action');
-    if (btn) btn.style.width = '100%';
+    if (btn) {
+      btn.style.width = '100%';
+      btn.style.display = 'block';
+      btn.style.margin = '0 auto';
+    }
   }, 50);
 }
 
