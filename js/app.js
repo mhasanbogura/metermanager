@@ -1873,7 +1873,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.89'} (build ${'712'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.90'} (build ${'715'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
@@ -2072,6 +2072,9 @@ function startUpdateDownload(info) {
 
 /* Forced (non-dismissible) update dialog — only shown when a newer build exists. */
 function showForcedUpdatePopup(info) {
+  // Prevent duplicate popups
+  if ($('#dlg').hidden === false) return;
+
   state.updatingForUpdate = true;
   try { renderHome(); } catch (e) {}
   _updateInfo = info;
@@ -2080,7 +2083,6 @@ function showForcedUpdatePopup(info) {
   openDialog(
     'Update Available',
     `<div style="text-align:center;">
-       <p class="body-text"><strong>Update Available</strong></p>
        <p class="body-text">A new version (${esc(info.latestName || '')}) is available.</p>
      </div>`,
     [{
