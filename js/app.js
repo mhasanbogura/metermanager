@@ -1873,7 +1873,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.82'} (build ${'691'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.84'} (build ${'697'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
@@ -2075,18 +2075,59 @@ function showForcedUpdatePopup(info) {
   state.updatingForUpdate = true;
   try { renderHome(); } catch (e) {}
   _updateInfo = info;
+  
+  // Use custom dialog to allow full-width button
   openDialog(
     t('settings.update.title'),
-    '<p class="body-text">' + esc(t('settings.update.new', { v: info.latestName || '' })) + '</p>' +
-    '<p class="body-text">Current Balance: --</p>',
+    '<p class="body-text">' + esc(t('settings.update.new', { v: info.latestName || '' })) + '</p>',
     [{
       key: 'update',
       label: t('settings.update.download'),
       cls: 'primary',
-      fn: function () { startUpdateDownload(info); }
+      fn: function(btn) {
+        // Change button to show progress
+        btn.style.width = '100%';
+        btn.textContent = t('settings.update.downloading') + ' 0%';
+        
+        // Start download and pass a progress callback
+        startUpdateDownloadWithProgress(info, (percent) => {
+          if (percent < 100) {
+            btn.textContent = t('settings.update.downloading') + ' ' + percent + '%';
+          } else {
+            btn.textContent = t('settings.update.installing');
+          }
+        });
+      }
     }],
     false
   );
+  
+  // Force button to be full width in CSS
+  setTimeout(() => {
+    const btn = $('#dlgActions .primary-action');
+    if (btn) btn.style.width = '100%';
+  }, 50);
+}
+
+function startUpdateDownloadWithProgress(info, progressCb) {
+  if (window.NescoBridge && typeof window.NescoBridge.downloadAndInstallApk === 'function') {
+    window.NescoBridge.downloadAndInstallApk(info.downloadUrl);
+    
+    // Poll for download progress
+    let checkProgress = setInterval(() => {
+      if (window.NescoBridge && typeof window.NescoBridge.getDownloadProgress === 'function') {
+         let p = window.NescoBridge.getDownloadProgress();
+         progressCb(p);
+         if (p >= 100) clearInterval(checkProgress);
+      } else {
+         clearInterval(checkProgress);
+         progressCb(100); // Simulate install transition
+      }
+    }, 1000);
+    
+  } else {
+    try { location.href = info.downloadUrl; } catch (e) {}
+  }
 }
 
 function setUpdateButtonLabel(info) {

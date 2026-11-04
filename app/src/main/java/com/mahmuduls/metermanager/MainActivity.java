@@ -875,6 +875,27 @@ public class MainActivity extends Activity {
             downloadApkInternal(urlStr, "MeterManager-update.apk");
         }
 
+        @JavascriptInterface
+        public int getDownloadProgress() {
+            if (pendingDownloadId == -1) return 0;
+            DownloadManager dm = (DownloadManager) getSystemService(DOWNLOAD_SERVICE);
+            if (dm == null) return 0;
+            DownloadManager.Query query = new DownloadManager.Query();
+            query.setFilterById(pendingDownloadId);
+            Cursor cursor = dm.query(query);
+            if (cursor != null && cursor.moveToFirst()) {
+                int status = cursor.getInt(cursor.getColumnIndex(DownloadManager.COLUMN_STATUS));
+                if (status == DownloadManager.STATUS_SUCCESSFUL) return 100;
+                int bytesDownloaded = cursor.getInt(cursor.getColumnIndex(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR));
+                int bytesTotal = cursor.getInt(cursor.getColumnIndex(DownloadManager.COLUMN_TOTAL_SIZE_BYTES));
+                cursor.close();
+                if (bytesTotal > 0) {
+                    return (int) ((bytesDownloaded * 100L) / bytesTotal);
+                }
+            }
+            return 0;
+        }
+
         /* Asks the native Drive scanner whether a newer APK of this app is present in
            the release folder. The JSON result is delivered to
            window.__driveUpdateResult(cbId, json). */
@@ -1338,6 +1359,7 @@ public class MainActivity extends Activity {
                 (e.getMessage() != null ? e.getMessage().replace("'", "\\\\'") : "unknown") + "', true);", null);
         }
     }
+
 
     private void pushThemeToWebView() {
         mainHandler.postDelayed(() -> {
