@@ -223,7 +223,12 @@ const WHATSAPP = 'https://wa.me/8801721665453';
 const DESCO = 'https://prepaid.desco.org.bd';
 const NESCO_API = '/nesco';
 
-var state = { meters: [], settings: null };
+var state = {
+  meters: [],
+  settings: null,
+  /** When a forced update dialog is active, all meter reads must show "--" instead of live data. */
+  updatingForUpdate: false
+};
 var currentView = 'home';
 var currentMeterId = null;
 let homeScrollY = 0;
@@ -453,7 +458,10 @@ async function probeSystemType(accountNo, meterNo) {
   }
   return null;
 }
-function balanceOf(meter) { return meter.balance !== null && meter.balance !== undefined ? Number(meter.balance) : null; }
+function balanceOf(meter) {
+  if (state && state.updatingForUpdate) return null;
+  return meter.balance !== null && meter.balance !== undefined ? Number(meter.balance) : null;
+}
 function lowBalance(meter) { const b = balanceOf(meter); const th = (typeof isSharedView !== 'undefined' && isSharedView && currentView === 'meter') ? 0 : (meter.lowThreshold ?? state.settings.alertThreshold ?? LOW_BALANCE); return b !== null && b < th; }
 function median(arr) {
   if (!arr.length) return 0;
@@ -602,6 +610,8 @@ function openDialog(title, bodyHtml, actions = [], canClose = true) {
   };
   const dlg = $('#dlg');
   dlg.onclick = e => { if (canClose && e.target === dlg) closeDialog(); };
+  let _closeCb = null;
+  if (typeof canClose === 'function') _closeCb = canClose;
   dlg.querySelectorAll('.btn').forEach(b => {
     b.ontouchstart = () => b.classList.add('pressed');
     b.ontouchend = () => b.classList.remove('pressed');
@@ -1492,32 +1502,32 @@ function renderHome() {
     return;
   }
   const list = state.meters.map(m => {
-    const b = balanceOf(m);
-    const low = lowBalance(m);
-    const errShort = m.err ? (m.err.length > 30 ? m.err.slice(0, 29) + '…' : m.err) : '';
-    const badge = m.err ? `<span class="mc-badge err" title="${esc(m.err)}">${esc(errShort)}</span>`
-      : m.loading ? `<span class="mc-badge ok">${esc(t('home.refreshing'))}</span>`
-      : ``;
-    const avg = m.avgDailyCost != null ? `<span class="mc-avg">${esc(t('home.avg_day', { v: fmtBdt(m.avgDailyCost) }))}</span>` : '';
-    return `<div class="meter-card" draggable="true" data-id="${m.id}" onclick="window.ppOpen('${m.id}')">
-      <div class="mc-top">
-        <span class="mc-provider">${m.provider === 'nesco' ? 'NESCO' : 'DESCO' + (m.sys === 'unified' ? ' · Unified' : '')}</span>
-        <div class="mc-actions">
-          <button class="mc-action mc-action-danger" title="${esc(t('btn.remove'))}" onclick="event.stopPropagation();window.ppRemove('${m.id}')">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
-          </button>
-          <button class="mc-action" title="${esc(t('btn.edit'))}" onclick="event.stopPropagation();window.ppEditMeter('${m.id}')">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
-          </button>
-          <button class="mc-action" title="${esc(t('btn.refresh'))}" onclick="event.stopPropagation();window.ppRefresh('${m.id}')">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.65 6.35A7.958 7.958 0 0012 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0112 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
-          </button>
-        </div>
-      </div>
-      <div class="mc-number">${esc(m.nickname || m.info?.customerName || m.info?.name || '')}${(m.nickname || m.info?.customerName || m.info?.name) ? '<br>' : ''}${esc(m.accountNo || m.meterNo || m.consumerNo)}</div>
-      <div class="mc-balance ${b !== null && low ? 'low' : ''}" style="${b !== null && low ? 'color:#ff6b6b' : ''}">${b === null ? '––' : fmtBdt(b)}${low ? ' <span style="font-size:12px;font-weight:700;color:#ff6b6b">' + esc(t('home.low')) + '</span>' : ''}</div>
-      <div class="mc-sub"><span>${avg || ''}</span><span>${m.readingTime ? esc(t('home.last_updated', { t: timeAgo(new Date(m.readingTime).getTime()) })) : (m.updatedAt ? esc(t('home.last_updated', { t: timeAgo(m.updatedAt) })) : esc(t('home.updated_never')))}</span>${badge}</div>
-    </div>`;
+     const b = balanceOf(m);
+     const low = lowBalance(m);
+     const errShort = m.err ? (m.err.length > 30 ? m.err.slice(0, 29) + '…' : m.err) : '';
+     const badge = m.err ? `<span class="mc-badge err" title="${esc(m.err)}">${esc(errShort)}</span>`
+       : m.loading ? `<span class="mc-badge ok">${esc(t('home.refreshing'))}</span>`
+       : ``;
+     const avg = m.avgDailyCost != null ? `<span class="mc-avg">${esc(t('home.avg_day', { v: fmtBdt(m.avgDailyCost) }))}</span>` : '';
+     return `<div class="meter-card" draggable="true" data-id="${m.id}" onclick="window.ppOpen('${m.id}')">
+       <div class="mc-top">
+         <span class="mc-provider">${m.provider === 'nesco' ? 'NESCO' : 'DESCO' + (m.sys === 'unified' ? ' · Unified' : '')}</span>
+         <div class="mc-actions">
+           <button class="mc-action mc-action-danger" title="${esc(t('btn.remove'))}" onclick="event.stopPropagation();window.ppRemove('${m.id}')">
+             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+           </button>
+           <button class="mc-action" title="${esc(t('btn.edit'))}" onclick="event.stopPropagation();window.ppEditMeter('${m.id}')">
+             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+           </button>
+           <button class="mc-action" title="${esc(t('btn.refresh'))}" onclick="event.stopPropagation();window.ppRefresh('${m.id}')">
+             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.65 6.35A7.958 7.958 0 0012 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0112 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+           </button>
+         </div>
+       </div>
+       <div class="mc-number">${esc(m.nickname || m.info?.customerName || m.info?.name || '')}${(m.nickname || m.info?.customerName || m.info?.name) ? '<br>' : ''}${esc(m.accountNo || m.meterNo || m.consumerNo)}</div>
+        <div class="mc-balance ${b !== null && low ? 'low' : ''}" style="${b !== null && low ? 'color:#ff6b6b' : ''}">${state.updatingForUpdate ? '--' : (m.loading && b === null ? '--' : (b === null ? '––' : fmtBdt(b)))}${low ? ' <span style="font-size:12px;font-weight:700;color:#ff6b6b">' + esc(t('home.low')) + '</span>' : ''}</div>
+       <div class="mc-sub"><span>${avg || ''}</span><span>${m.readingTime ? esc(t('home.last_updated', { t: timeAgo(new Date(m.readingTime).getTime()) })) : (m.updatedAt ? esc(t('home.last_updated', { t: timeAgo(m.updatedAt) })) : esc(t('home.updated_never')))}</span>${badge}</div>
+     </div>`;
   }).join('');
   c.innerHTML = demoBanner + `
     <div style="display:flex;align-items:center;justify-content:space-between">
@@ -1863,7 +1873,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.73'} (build ${'664'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.74'} (build ${'667'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
@@ -2056,6 +2066,8 @@ function startUpdateDownload(info) {
 
 /* Forced (non-dismissible) update dialog — only shown when a newer build exists. */
 function showForcedUpdatePopup(info) {
+  state.updatingForUpdate = true;
+  try { renderHome(); } catch (e) {}
   _updateInfo = info;
   openDialog(
     t('settings.update.title'),
@@ -2082,13 +2094,26 @@ function setUpdateButtonLabel(info) {
 }
 
 async function checkAppUpdate() {
-  // Ensure we load state and cached meters/data first so nothing is lost
   loadState();
   if (!hasNativeDriveScan()) return;
+  
+  // Set flag to show -- while checking
+  state.updatingForUpdate = true;
+  renderHome();
+  
   var info = await scanDriveForUpdate();
-  if (!info || !info.ok) return;
+  
+  // Reset flag
+  state.updatingForUpdate = false;
+  
+  if (!info || !info.ok) {
+    renderHome(); // Re-render with real balances
+    return;
+  }
+  
   setUpdateButtonLabel(info);
   if (info.available) showForcedUpdatePopup(info);
+  else renderHome(); // Re-render with real balances if no update
 }
 
 window.onForcedUpdateClick = async function() {
