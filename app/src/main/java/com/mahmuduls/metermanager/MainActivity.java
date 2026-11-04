@@ -85,6 +85,9 @@ public class MainActivity extends Activity {
         setContentView(R.layout.activity_main);
 
         webView = findViewById(R.id.webView);
+        
+        // Restore persisted pendingDownloadId
+        pendingDownloadId = getSharedPreferences("MeterManager", MODE_PRIVATE).getLong("pendingDownloadId", -1);
 
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
@@ -97,6 +100,9 @@ public class MainActivity extends Activity {
         settings.setUserAgentString("Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36");
 
         webView.addJavascriptInterface(new NescoBridge(), "NescoBridge");
+
+        /* Check if a download finished while the app was closed. */
+        checkPendingDownload();
 
         /* Remove any APK left behind by a previous update so the next download
            starts from a clean cache. */
@@ -121,9 +127,13 @@ public class MainActivity extends Activity {
             public void onReceive(Context context, Intent intent) {
                 if (DownloadManager.ACTION_DOWNLOAD_COMPLETE.equals(intent.getAction())) {
                     long id = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1);
+                    if (id == -1) {
+                        id = getSharedPreferences("MeterManager", MODE_PRIVATE).getLong("pendingDownloadId", -1);
+                    }
                     if (id == pendingDownloadId && id > 0) {
                         installApk(id);
                         pendingDownloadId = -1;
+                        getSharedPreferences("MeterManager", MODE_PRIVATE).edit().remove("pendingDownloadId").apply();
                     }
                 }
             }
@@ -1235,6 +1245,7 @@ public class MainActivity extends Activity {
                 DownloadManager dm = (DownloadManager) getSystemService(DOWNLOAD_SERVICE);
                 if (dm == null) return;
                 pendingDownloadId = dm.enqueue(request);
+                getSharedPreferences("MeterManager", MODE_PRIVATE).edit().putLong("pendingDownloadId", pendingDownloadId).apply();
                 webView.evaluateJavascript("if(window.toast) window.toast('Downloading update...', false);", null);
             } catch (Exception e) {
                 Log.e(TAG, "Download update error", e);
@@ -1337,5 +1348,25 @@ public class MainActivity extends Activity {
             String color = isDark ? "#000000" : "#f2f4f8";
             setStatusBarColorDirect(color);
         }, 150);
+    }
+
+    private void checkPendingDownload() {
+        if (pendingDownloadId == -1) return;
+        DownloadManager dm = (DownloadManager) getSystemService(DOWNLOAD_SERVICE);
+        if (dm == null) return;
+        DownloadManager.Query query = new DownloadManager.Query();
+        query.setFilterById(pendingDownloadId);
+        Cursor cursor = dm.query(query);
+        if (cursor != null) {
+            if (cursor.moveToFirst()) {
+                int status = cursor.getInt(cursor.getColumnIndex(DownloadManager.COLUMN_STATUS));
+                if (status == DownloadManager.STATUS_SUCCESSFUL) {
+                    installApk(pendingDownloadId);
+                    pendingDownloadId = -1;
+                    getSharedPreferences("MeterManager", MODE_PRIVATE).edit().remove("pendingDownloadId").apply();
+                }
+            }
+            cursor.close();
+        }
     }
 }
