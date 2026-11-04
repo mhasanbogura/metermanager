@@ -1873,7 +1873,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.86'} (build ${'703'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.87'} (build ${'706'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
@@ -2076,28 +2076,27 @@ function showForcedUpdatePopup(info) {
   try { renderHome(); } catch (e) {}
   _updateInfo = info;
   
-  // Use custom dialog to allow full-width button
+  // Use custom dialog
   openDialog(
-    t('settings.update.title'),
+    'Update Available',
     `<div style="text-align:center;">
-       <p class="body-text"><strong>${esc(t('settings.update.title'))}</strong></p>
-       <p class="body-text">${esc(t('settings.update.new', { v: info.latestName || '' }))}</p>
+       <p class="body-text">A new version (${esc(info.latestName || '')}) is available.</p>
      </div>`,
     [{
       key: 'update',
-      label: t('settings.update.download'), // "Download & Install"
+      label: 'Update',
       cls: 'primary',
       fn: function(btn) {
         // Change button to show progress
         btn.style.width = '100%';
-        btn.textContent = t('settings.update.downloading') + ' 0%';
+        btn.textContent = 'Downloading... 0%';
         
         // Start download and pass a progress callback
         startUpdateDownloadWithProgress(info, (percent) => {
           if (percent < 100) {
-            btn.textContent = t('settings.update.downloading') + ' ' + percent + '%';
+            btn.textContent = 'Downloading... ' + percent + '%';
           } else {
-            btn.textContent = t('settings.update.installing') || 'Installing...';
+            btn.textContent = 'Installing';
           }
         });
       }
