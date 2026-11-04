@@ -885,7 +885,11 @@ public class MainActivity extends Activity {
             Cursor cursor = dm.query(query);
             if (cursor != null && cursor.moveToFirst()) {
                 int status = cursor.getInt(cursor.getColumnIndex(DownloadManager.COLUMN_STATUS));
-                if (status == DownloadManager.STATUS_SUCCESSFUL) return 100;
+                if (status == DownloadManager.STATUS_SUCCESSFUL) {
+                    installApk(pendingDownloadId);
+                    cursor.close();
+                    return 100;
+                }
                 int bytesDownloaded = cursor.getInt(cursor.getColumnIndex(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR));
                 int bytesTotal = cursor.getInt(cursor.getColumnIndex(DownloadManager.COLUMN_TOTAL_SIZE_BYTES));
                 cursor.close();
