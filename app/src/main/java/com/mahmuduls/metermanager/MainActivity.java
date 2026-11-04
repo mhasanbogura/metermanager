@@ -1263,9 +1263,42 @@ public class MainActivity extends Activity {
             if (dm == null) return;
             Uri uri = dm.getUriForDownloadedFile(downloadId);
             if (uri == null) {
+                // Fallback: try querying downloaded file from query
+                DownloadManager.Query query = new DownloadManager.Query();
+                query.setFilterById(downloadId);
+                Cursor cursor = dm.query(query);
+                if (cursor != null && cursor.moveToFirst()) {
+                    int columnIndex = cursor.getColumnIndex(DownloadManager.COLUMN_LOCAL_URI);
+                    if (columnIndex >= 0) {
+                        String uriString = cursor.getString(columnIndex);
+                        if (uriString != null) uri = Uri.parse(uriString);
+                    }
+                    cursor.close();
+                }
+            }
+            if (uri == null && pendingApkPath != null) {
+                java.io.File f = new java.io.File(pendingApkPath);
+                if (f.exists()) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                        uri = androidx.core.content.FileProvider.getUriForFile(this, getPackageName() + ".fileprovider", f);
+                    } else {
+                        uri = Uri.fromFile(f);
+                    }
+                }
+            }
+            if (uri == null) {
                 webView.evaluateJavascript("if(window.toast) window.toast('Download failed. File not found.', true);", null);
                 return;
             }
+
+            // If uri is file://, convert to FileProvider content:// URI on Android N+
+            if ("file".equals(uri.getScheme()) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                java.io.File f = new java.io.File(uri.getPath());
+                if (f.exists()) {
+                    uri = androidx.core.content.FileProvider.getUriForFile(this, getPackageName() + ".fileprovider", f);
+                }
+            }
+
             Intent install = new Intent(Intent.ACTION_VIEW);
             install.setDataAndType(uri, "application/vnd.android.package-archive");
             install.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
@@ -1290,7 +1323,7 @@ public class MainActivity extends Activity {
         } catch (Exception e) {
             Log.e(TAG, "install apk error", e);
             webView.evaluateJavascript("if(window.toast) window.toast('Install failed: " +
-                e.getMessage().replace("'", "\\\\'") + "', true);", null);
+                (e.getMessage() != null ? e.getMessage().replace("'", "\\\\'") : "unknown") + "', true);", null);
         }
     }
 

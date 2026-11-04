@@ -1873,7 +1873,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.74'} (build ${'667'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.75'} (build ${'670'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
@@ -2055,9 +2055,15 @@ function scanDriveForUpdate() {
 
 function startUpdateDownload(info) {
   toast(t('settings.update.downloading'), false);
+  // Use the Drive file ID when available, so the APK is downloaded from Google Drive
+  // directly and the DownloadManager + install flow in MainActivity handles the rest.
   if (window.NescoBridge && typeof window.NescoBridge.downloadDriveUpdate === 'function') {
-    window.NescoBridge.downloadDriveUpdate(info.fileId, info.fileName || '');
-  } else if (window.NescoBridge && typeof window.NescoBridge.downloadAndInstallApk === 'function') {
+    if (info.fileId) {
+      window.NescoBridge.downloadDriveUpdate(info.fileId, info.fileName || 'MeterManager-update.apk');
+    } else if (typeof window.NescoBridge.downloadAndInstallApk === 'function' && info.downloadUrl) {
+      window.NescoBridge.downloadAndInstallApk(info.downloadUrl);
+    }
+  } else if (typeof window.NescoBridge !== 'undefined' && typeof window.NescoBridge.downloadAndInstallApk === 'function') {
     window.NescoBridge.downloadAndInstallApk(info.downloadUrl);
   } else {
     try { location.href = info.downloadUrl; } catch (e) {}
@@ -2072,7 +2078,7 @@ function showForcedUpdatePopup(info) {
   openDialog(
     t('settings.update.title'),
     '<p class="body-text">' + esc(t('settings.update.new', { v: info.latestName || '' })) + '</p>' +
-    '<p class="body-text">' + esc(t('settings.update.current', { v: info.installedName || '', b: info.installedCode || '' })) + '</p>',
+    '<p class="body-text">Current Balance: --</p>',
     [{
       key: 'update',
       label: t('settings.update.download'),
@@ -2096,24 +2102,23 @@ function setUpdateButtonLabel(info) {
 async function checkAppUpdate() {
   loadState();
   if (!hasNativeDriveScan()) return;
-  
-  // Set flag to show -- while checking
+
+  // Set flag to show '--' while the Drive scan is running
   state.updatingForUpdate = true;
-  renderHome();
-  
+  try { renderHome(); } catch (e) {}
+
   var info = await scanDriveForUpdate();
-  
-  // Reset flag
+
   state.updatingForUpdate = false;
-  
-  if (!info || !info.ok) {
-    renderHome(); // Re-render with real balances
+
+  if (!info || !info.ok || !info.available) {
+    // No update: restore balances immediately
+    try { renderHome(); } catch (e) {}
     return;
   }
-  
+
   setUpdateButtonLabel(info);
-  if (info.available) showForcedUpdatePopup(info);
-  else renderHome(); // Re-render with real balances if no update
+  showForcedUpdatePopup(info);
 }
 
 window.onForcedUpdateClick = async function() {
