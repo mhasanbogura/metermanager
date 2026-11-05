@@ -460,6 +460,7 @@ async function probeSystemType(accountNo, meterNo) {
 }
 function balanceOf(meter) {
   if (state && state.updatingForUpdate) return null;
+  if (meter.loading) return null;
   return meter.balance !== null && meter.balance !== undefined ? Number(meter.balance) : null;
 }
 function lowBalance(meter) { const b = balanceOf(meter); const th = (typeof isSharedView !== 'undefined' && isSharedView && currentView === 'meter') ? 0 : (meter.lowThreshold ?? state.settings.alertThreshold ?? LOW_BALANCE); return b !== null && b < th; }
@@ -1873,7 +1874,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.93'} (build ${'724'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.94'} (build ${'727'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
