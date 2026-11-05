@@ -627,7 +627,11 @@ function openDialog(title, bodyHtml, actions = [], canClose = true) {
     b.ontouchcancel = () => b.classList.remove('pressed');
   });
 }
-function closeDialog() { $('#dlg').hidden = true; }
+function closeDialog() {
+  // Block dismissal while forced update is showing — no way out except the Update button
+  if (state.updatingForUpdate) return;
+  $('#dlg').hidden = true;
+}
 
 /* ================= add meter ================= */
 function showAddMeter() {
@@ -1882,7 +1886,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.18'} (build ${'799'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.19'} (build ${'802'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {

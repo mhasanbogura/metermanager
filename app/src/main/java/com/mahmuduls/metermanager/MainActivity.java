@@ -247,6 +247,7 @@ public class MainActivity extends Activity {
             "(function(){" +
             "  var d=document.getElementById('dlg');" +
             "  if(d && !d.hidden){" +
+            "    if(typeof state!=='undefined' && state.updatingForUpdate) return 'dialog';" +
             "    if(typeof closeDialog==='function') closeDialog();" +
             "    return 'dialog';" +
             "  }" +
