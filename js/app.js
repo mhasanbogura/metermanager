@@ -1517,7 +1517,7 @@ function renderHome() {
      const badge = m.err ? `<span class="mc-badge err" title="${esc(m.err)}">${esc(errShort)}</span>`
        : m.loading ? `<span class="mc-badge ok">${esc(t('home.refreshing'))}</span>`
        : ``;
-     const avg = m.avgDailyCost != null ? `<span class="mc-avg">${esc(t('home.avg_day', { v: fmtBdt(m.avgDailyCost) }))}</span>` : '';
+     const avg = (m.loading || m.err || m.avgDailyCost == null) ? `--` : `<span class="mc-avg">${esc(t('home.avg_day', { v: fmtBdt(m.avgDailyCost) }))}</span>`;
      return `<div class="meter-card" draggable="true" data-id="${m.id}" onclick="window.ppOpen('${m.id}')">
        <div class="mc-top">
          <span class="mc-provider">${m.provider === 'nesco' ? 'NESCO' : 'DESCO' + (m.sys === 'unified' ? ' · Unified' : '')}</span>
@@ -1535,7 +1535,7 @@ function renderHome() {
        </div>
        <div class="mc-number">${esc(m.nickname || m.info?.customerName || m.info?.name || '')}${(m.nickname || m.info?.customerName || m.info?.name) ? '<br>' : ''}${esc(m.accountNo || m.meterNo || m.consumerNo)}</div>
         <div class="mc-balance ${b !== null && low ? 'low' : ''}" style="${b !== null && low ? 'color:#ff6b6b' : ''}">${(state.updatingForUpdate || m.loading || m.err) ? '--' : (b === null ? '––' : fmtBdt(b))}${low ? ' <span style="font-size:12px;font-weight:700;color:#ff6b6b">' + esc(t('home.low')) + '</span>' : ''}</div>
-       <div class="mc-sub"><span>${avg || ''}</span><span>${m.readingTime ? esc(t('home.last_updated', { t: timeAgo(new Date(m.readingTime).getTime()) })) : (m.updatedAt ? esc(t('home.last_updated', { t: timeAgo(m.updatedAt) })) : esc(t('home.updated_never')))}</span>${badge}</div>
+       <div class="mc-sub"><span>${(m.loading || m.err) ? esc(t('home.avg_day', { v: '--' })) : avg}</span><span>${(m.loading || m.err) ? esc(t('home.last_updated', { t: '--' })) : (m.readingTime ? esc(t('home.last_updated', { t: timeAgo(new Date(m.readingTime).getTime()) })) : (m.updatedAt ? esc(t('home.last_updated', { t: timeAgo(m.updatedAt) })) : esc(t('home.updated_never'))))}</span>${badge}</div>
      </div>`;
   }).join('');
   c.innerHTML = demoBanner + `
@@ -1882,7 +1882,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.6'} (build ${'763'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.7'} (build ${'766'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
