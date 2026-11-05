@@ -1886,7 +1886,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.20'} (build ${'805'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.21'} (build ${'808'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
@@ -2305,8 +2305,9 @@ function showApp() {
 }
 function hideSplash(immediate) {
   const elapsed = (typeof performance !== 'undefined') ? performance.now() : 1000;
-  /* Increased floor from 350ms to 1200ms to keep splash screen visible longer */
-  const wait = immediate ? 0 : Math.max(0, 1200 - elapsed);
+  /* 350ms floor: long enough to avoid a one-frame flash of the login screen on a
+     very fast load, short enough not to feel like a stall on cold start. */
+  const wait = immediate ? 0 : Math.max(0, 350 - elapsed);
   setTimeout(() => {
     const splash = document.getElementById('splash-screen');
     if (splash && !splash.classList.contains('hidden')) {
