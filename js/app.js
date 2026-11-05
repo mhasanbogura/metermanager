@@ -1875,7 +1875,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.0'} (build ${'745'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.1'} (build ${'748'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
@@ -2492,8 +2492,10 @@ function dailyCacheCleanup() {
 async function boot() {
   loadState();
   
-  /* Initial load: Do NOT set updatingForUpdate or m.loading = true.
-     This allows cached balances to show immediately (Step 1). */
+  /* Initial load: Set updatingForUpdate and m.loading = true
+     to show "--" and "Updating..." (Step 1/3) */
+  state.updatingForUpdate = true;
+  state.meters.forEach(m => { m.loading = true; m.err = null; });
   renderHome();
   
   /* LOCAL is already the default persistence; awaiting its IndexedDB write only
