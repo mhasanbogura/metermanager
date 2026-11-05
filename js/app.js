@@ -1882,7 +1882,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.15'} (build ${'790'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.16'} (build ${'793'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
@@ -2092,7 +2092,7 @@ function showForcedUpdatePopup(info) {
   openDialog(
     '',
     `<div style="text-align:center; padding: 5px 0;">
-       <img src="icons/icon.png" style="width: 40px; height: 40px; margin: 0 auto 5px auto; display: block;">
+       <img src="icons/icon-512.png" style="width: 40px; height: 40px; margin: 0 auto 5px auto; display: block;">
        <p class="body-text" style="margin: 0; font-size: 16px; font-weight: bold;">Update Available</p>
        <p class="body-text" style="margin: 2px 0 10px 0; font-size: 13px; color: #64748b;">A new version (${esc(info.latestName || '')}) is available.</p>
      </div>`,
