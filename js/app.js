@@ -52,7 +52,7 @@ const I18N = {
     'settings.general': 'General Settings', 'settings.device_theme': 'Device Theme', 'settings.device_theme_hint': 'Automatically switch theme based on system',
     'settings.oled_theme': 'OLED Theme', 'settings.oled_theme_hint': 'Use OLED black backdrop for eye comfort',
     'settings.language': 'Language', 'settings.low_threshold': 'Low balance threshold', 'settings.low_threshold_hint': 'Default threshold (BDT)',
-    'settings.share': 'Share app', 'settings.get_app': 'Get Android App', 'settings.link_copied': 'Link copied!', 'settings.import_export': 'Import/Export Meter Data', 'settings.delete_all': 'Delete All Meters',
+    'settings.share': 'Share app', 'settings.get_app': 'Get Android App', 'settings.android_app_url': 'https://u2l.ai/MeterManager', 'settings.link_copied': 'Link copied!', 'settings.import_export': 'Import/Export Meter Data', 'settings.delete_all': 'Delete All Meters',
     'settings.about': 'About App', 'settings.contact': 'Contact Developer',
     'settings.no_desc': 'No description available.', 'settings.no_contact': 'No contact information available.',
     'detail.energy_amount': 'Energy Amount', 'detail.energy_kwh': 'Energy (kWh)', 'detail.vat_other': 'VAT & Other Charges',
@@ -157,7 +157,7 @@ const I18N = {
     'settings.general': 'সাধারণ সেটিংস', 'settings.device_theme': 'ডিভাইস থিম', 'settings.device_theme_hint': 'সিস্টেমের উপর ভিত্তি করে স্বয়ংক্রিয়ভাবে থিম পরিবর্তন করুন',
     'settings.oled_theme': 'OLED থিম', 'settings.oled_theme_hint': 'চোখের আরামের জন্য OLED কালো ব্যাকড্রপ ব্যবহার করুন।',
     'settings.language': 'ভাষা', 'settings.low_threshold': 'কম ব্যালেন্স সীমা', 'settings.low_threshold_hint': 'ডিফল্ট সীমা (টাকায়)',
-    'settings.share': 'শেয়ার', 'settings.get_app': 'অ্যান্ড্রয়েড অ্যাপ নিন', 'settings.link_copied': 'লিংক কপি হয়েছে!', 'settings.import_export': 'মিটার ডেটা ইমপোর্ট/এক্সপোর্ট', 'settings.delete_all': 'সমস্ত মিটার মুছে ফেলুন',
+    'settings.share': 'শেয়ার', 'settings.get_app': 'অ্যান্ড্রয়েড অ্যাপ নিন', 'settings.android_app_url': 'https://u2l.ai/MeterManager', 'settings.link_copied': 'লিংক কপি হয়েছে!', 'settings.import_export': 'মিটার ডেটা ইমপোর্ট/এক্সপোর্ট', 'settings.delete_all': 'সমস্ত মিটার মুছে ফেলুন',
     'settings.about': 'অ্যাপ সম্পর্কে', 'settings.contact': 'ডেভেলপারের সাথে যোগাযোগ করুন',
     'settings.update': 'আপডেট দেখুন', 'settings.update.title': 'অ্যাপ আপডেট', 'settings.update.new': 'নতুন সংস্করণ পাওয়া গেছে ({v})',
     'settings.update.current': 'বর্তমান: {v} (বিল্ড {b})', 'settings.update.download': 'ডাউনলোড ও ইনস্টল',
@@ -1111,7 +1111,7 @@ async function renderMeterDetail() {
         ${m.provider === 'nesco' && m.lastReading ? `<span>${esc(t('detail.reading_value', { v: m.lastReading }))}</span>` : ''}
         <span>${esc(t('detail.balance_updated', { t: timeAgo(m.readingTime ? new Date(m.readingTime).getTime() : m.updatedAt) }))}</span>
       </div>
-      ${m.loading ? '<div style="opacity:.9;font-size:12.5px">' + esc(t('home.refreshing')) + '</div>' : (m.err ? `<div style="opacity:.9;font-size:12.5px;color:#ffd9d9">${esc(m.err)}</div>` : '')}
+      ${m.loading ? '<div style="opacity:.9;font-size:12.5px">' + esc(t('home.refreshing')) + '</div>' : (m.err ? `<div style="opacity:.9;font-size:12.5px;color:#ffd9d9">${esc(m.err)} <a href="${t('settings.android_app_url')}" style="color:#3b82f6;text-decoration:underline">${t('settings.get_app')}</a></div>` : '')}
     </div>
     ${m.provider === 'desco' ? renderInfoCard(m) : ''}
     ${m.provider === 'desco' ? '<div id="totalUseWrap"></div>' : ''}
@@ -1882,7 +1882,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.5'} (build ${'760'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.6'} (build ${'763'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
