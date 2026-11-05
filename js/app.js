@@ -1873,7 +1873,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.92'} (build ${'721'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.93'} (build ${'724'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
@@ -2156,19 +2156,18 @@ async function checkAppUpdate() {
     return;
   }
 
-  // Set flag to show '--' while the Drive scan is running
-  state.updatingForUpdate = true;
-  try { renderHome(); } catch (e) {}
-
+  // Skip setting updatingForUpdate = true here to avoid the intermediate state
   var info = await scanDriveForUpdate();
-
-  state.updatingForUpdate = false;
 
   if (!info || !info.ok || !info.available) {
     // No update: restore balances immediately
     try { renderHome(); } catch (e) {}
     return;
   }
+
+  // Set flag to show '--' ONLY when an update is actually found
+  state.updatingForUpdate = true;
+  try { renderHome(); } catch (e) {}
 
   setUpdateButtonLabel(info);
   showForcedUpdatePopup(info);
