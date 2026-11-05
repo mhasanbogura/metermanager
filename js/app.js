@@ -1875,7 +1875,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.98'} (build ${'739'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.99'} (build ${'742'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
@@ -2491,8 +2491,10 @@ function dailyCacheCleanup() {
 }
 async function boot() {
   loadState();
-  /* Initially set balances to "--" while checking for updates. */
+/* Initially set balances to "--" while checking for updates. */
   state.updatingForUpdate = true;
+  /* Ensure all meters are marked as loading to force "--" display */
+  state.meters.forEach(m => { m.loading = true; });
   renderHome();
 
   /* LOCAL is already the default persistence; awaiting its IndexedDB write only
