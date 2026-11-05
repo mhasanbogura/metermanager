@@ -1874,7 +1874,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.95'} (build ${'730'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.96'} (build ${'733'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
@@ -2489,6 +2489,10 @@ function dailyCacheCleanup() {
 }
 async function boot() {
   loadState();
+  /* Initially set balances to "--" while checking for updates. */
+  state.updatingForUpdate = true;
+  renderHome();
+
   /* LOCAL is already the default persistence; awaiting its IndexedDB write only
      delays the auth listener below, so fire it in the background instead. */
   try { auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {}); } catch {}
