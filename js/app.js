@@ -1882,7 +1882,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.11'} (build ${'778'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.12'} (build ${'781'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
@@ -2102,7 +2102,8 @@ function showForcedUpdatePopup(info) {
       cls: 'primary',
       fn: function(btn) {
         // Change button to show progress
-        btn.style.width = '100%';
+        btn.style.width = '90%';
+        btn.style.margin = '15px auto 5px auto';
         btn.style.border = '1px solid #ccc';
         btn.textContent = 'Downloading... 0%';
         
@@ -2123,9 +2124,9 @@ function showForcedUpdatePopup(info) {
   setTimeout(() => {
     const btn = $('#dlgActions .primary-action');
     if (btn) {
-      btn.style.width = '100%';
+      btn.style.width = '90%';
       btn.style.display = 'block';
-      btn.style.margin = '0 auto';
+      btn.style.margin = '15px auto 5px auto';
       btn.style.border = '1px solid #ccc';
     }
   }, 50);
