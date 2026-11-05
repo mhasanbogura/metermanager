@@ -1882,7 +1882,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.16'} (build ${'793'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.17'} (build ${'796'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
@@ -2091,10 +2091,10 @@ function showForcedUpdatePopup(info) {
   // Use custom dialog
   openDialog(
     '',
-    `<div style="text-align:center; padding: 5px 0;">
-       <img src="icons/icon-512.png" style="width: 40px; height: 40px; margin: 0 auto 5px auto; display: block;">
-       <p class="body-text" style="margin: 0; font-size: 16px; font-weight: bold;">Update Available</p>
-       <p class="body-text" style="margin: 2px 0 10px 0; font-size: 13px; color: #64748b;">A new version (${esc(info.latestName || '')}) is available.</p>
+    `<div style="text-align:center; padding: 2px 0;">
+       <img src="icons/icon-512.png" style="width: 36px; height: 36px; margin: 0 auto 2px auto; display: block;">
+       <p class="body-text" style="margin: 0; font-size: 15px; font-weight: bold;">Update Available</p>
+       <p class="body-text" style="margin: 2px 0 2px 0; font-size: 12.5px; color: #64748b;">A new version (${esc(info.latestName || '')}) is available.</p>
      </div>`,
     [{
       key: 'update',
@@ -2103,7 +2103,7 @@ function showForcedUpdatePopup(info) {
       fn: function(btn) {
         // Change button to show progress
         btn.style.width = '90%';
-        btn.style.margin = '0 auto 5px auto';
+        btn.style.margin = '2px auto 2px auto';
         btn.style.padding = '8px';
         btn.style.borderRadius = '12px';
         btn.style.backgroundColor = '#2563eb';
@@ -2130,7 +2130,7 @@ function showForcedUpdatePopup(info) {
     if (btn) {
       btn.style.width = '90%';
       btn.style.display = 'block';
-      btn.style.margin = '0 auto 10px auto';
+      btn.style.margin = '0 auto 2px auto';
       btn.style.padding = '8px';
       btn.style.borderRadius = '12px';
       btn.style.backgroundColor = '#2563eb';
