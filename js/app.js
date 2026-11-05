@@ -587,6 +587,12 @@ async function refreshMeterOnce(meter) {
 }
 
 async function refreshAllMeters(opts = {}) {
+  if (!navigator.onLine) {
+    state.meters.forEach(m => { m.loading = false; });
+    renderHome();
+    toast('No internet connection');
+    return;
+  }
   state.meters.forEach(m => { m.loading = true; m.err = null; });
   renderHome();
   await Promise.all(state.meters.map(async (m) => {
@@ -1886,7 +1892,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.21'} (build ${'808'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.22'} (build ${'811'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
