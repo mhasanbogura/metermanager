@@ -1526,7 +1526,7 @@ function renderHome() {
          </div>
        </div>
        <div class="mc-number">${esc(m.nickname || m.info?.customerName || m.info?.name || '')}${(m.nickname || m.info?.customerName || m.info?.name) ? '<br>' : ''}${esc(m.accountNo || m.meterNo || m.consumerNo)}</div>
-        <div class="mc-balance ${b !== null && low ? 'low' : ''}" style="${b !== null && low ? 'color:#ff6b6b' : ''}">${state.updatingForUpdate ? '--' : (m.loading && b === null ? '--' : (b === null ? '––' : fmtBdt(b)))}${low ? ' <span style="font-size:12px;font-weight:700;color:#ff6b6b">' + esc(t('home.low')) + '</span>' : ''}</div>
+        <div class="mc-balance ${b !== null && low ? 'low' : ''}" style="${b !== null && low ? 'color:#ff6b6b' : ''}">${(state.updatingForUpdate || m.loading) ? '--' : (b === null ? '––' : fmtBdt(b))}${low ? ' <span style="font-size:12px;font-weight:700;color:#ff6b6b">' + esc(t('home.low')) + '</span>' : ''}</div>
        <div class="mc-sub"><span>${avg || ''}</span><span>${m.readingTime ? esc(t('home.last_updated', { t: timeAgo(new Date(m.readingTime).getTime()) })) : (m.updatedAt ? esc(t('home.last_updated', { t: timeAgo(m.updatedAt) })) : esc(t('home.updated_never')))}</span>${badge}</div>
      </div>`;
   }).join('');
@@ -1874,7 +1874,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.94'} (build ${'727'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.95'} (build ${'730'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
