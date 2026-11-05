@@ -1875,7 +1875,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.99'} (build ${'742'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.0'} (build ${'745'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
@@ -2491,12 +2491,11 @@ function dailyCacheCleanup() {
 }
 async function boot() {
   loadState();
-/* Initially set balances to "--" while checking for updates. */
-  state.updatingForUpdate = true;
-  /* Ensure all meters are marked as loading to force "--" display */
-  state.meters.forEach(m => { m.loading = true; });
+  
+  /* Initial load: Do NOT set updatingForUpdate or m.loading = true.
+     This allows cached balances to show immediately (Step 1). */
   renderHome();
-
+  
   /* LOCAL is already the default persistence; awaiting its IndexedDB write only
      delays the auth listener below, so fire it in the background instead. */
   try { auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {}); } catch {}
