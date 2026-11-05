@@ -587,10 +587,17 @@ async function refreshMeterOnce(meter) {
 }
 
 async function refreshAllMeters(opts = {}) {
-  state.meters.forEach(m => { m.loading = true; });
+  state.meters.forEach(m => { m.loading = true; m.err = null; });
   renderHome();
-  await Promise.all(state.meters.map(m => refreshMeter(m, { silent: true, tries: opts.tries ?? 2 }).catch(() => {})));
-  state.meters.forEach(m => { m.loading = false; });
+  await Promise.all(state.meters.map(async (m) => {
+    try {
+      await refreshMeter(m, { silent: true, tries: opts.tries ?? 2 });
+    } catch (e) {
+      m.err = e.message || 'Error';
+    } finally {
+      m.loading = false;
+    }
+  }));
   renderHome();
 }
 
@@ -1875,7 +1882,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.3'} (build ${'754'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.4'} (build ${'757'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
