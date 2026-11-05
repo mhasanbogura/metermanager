@@ -1887,7 +1887,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.24'} (build ${'817'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.25'} (build ${'820'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
@@ -2560,10 +2560,11 @@ async function boot() {
       applyTheme();
       applyLang();
       state.meters.forEach(m => { m.loading = true; m.err = null; });
-      /* After auth, do NOT automatically refresh.
-         Balances show "--" until user triggers refresh. */
+      /* After auth, trigger auto-refresh so it starts with "--"
+         and then loads live values automatically. */
       renderHome();
       openSharedMeter();
+      refreshAllMeters().then(() => renderHome());
       scheduleAlerts();
       scheduleAutoRefresh();
     } else if (authResolved) {
