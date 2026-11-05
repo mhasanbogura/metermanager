@@ -590,6 +590,7 @@ async function refreshAllMeters(opts = {}) {
   state.meters.forEach(m => { m.loading = true; });
   renderHome();
   await Promise.all(state.meters.map(m => refreshMeter(m, { silent: true, tries: opts.tries ?? 2 }).catch(() => {})));
+  state.meters.forEach(m => { m.loading = false; });
   renderHome();
 }
 
@@ -1874,7 +1875,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.97'} (build ${'736'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.98'} (build ${'739'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
