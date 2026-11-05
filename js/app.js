@@ -1111,7 +1111,7 @@ async function renderMeterDetail() {
         ${m.provider === 'nesco' && m.lastReading ? `<span>${esc(t('detail.reading_value', { v: m.lastReading }))}</span>` : ''}
         <span>${esc(t('detail.balance_updated', { t: timeAgo(m.readingTime ? new Date(m.readingTime).getTime() : m.updatedAt) }))}</span>
       </div>
-      ${m.loading ? '<div style="opacity:.9;font-size:12.5px">' + esc(t('home.refreshing')) + '</div>' : (m.err ? `<div style="opacity:.9;font-size:12.5px;color:#ffd9d9">${esc(m.err)} <a href="${t('settings.android_app_url')}" style="color:#3b82f6;text-decoration:underline">${t('settings.get_app')}</a></div>` : '')}
+      ${m.loading ? '<div style="opacity:.9;font-size:12.5px">' + esc(t('home.refreshing')) + '</div>' : (m.err ? `<div style="opacity:.9;font-size:12.5px;color:#ffd9d9">Network error. <a href="${t('settings.android_app_url')}" style="color:#3b82f6;text-decoration:underline">Get the Android app</a> to continue.</div>` : '')}
     </div>
     ${m.provider === 'desco' ? renderInfoCard(m) : ''}
     ${m.provider === 'desco' ? '<div id="totalUseWrap"></div>' : ''}
@@ -1882,7 +1882,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.7'} (build ${'766'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.8'} (build ${'769'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
