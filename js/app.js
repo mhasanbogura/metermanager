@@ -1875,7 +1875,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.1'} (build ${'748'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.2'} (build ${'751'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
@@ -2154,7 +2154,9 @@ function setUpdateButtonLabel(info) {
 async function checkAppUpdate() {
   loadState();
   if (!hasNativeDriveScan()) {
-    renderHome(); // Ensure balances show if no update
+    // No native scanning available (web/browser): clear flag immediately
+    state.updatingForUpdate = false;
+    renderHome(); // Ensure balances show
     return;
   }
 
