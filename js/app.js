@@ -1882,7 +1882,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.9'} (build ${'772'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.10'} (build ${'775'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
@@ -2090,8 +2090,9 @@ function showForcedUpdatePopup(info) {
   
   // Use custom dialog
   openDialog(
-    'Update Available',
+    '',
     `<div style="text-align:center;">
+       <p class="body-text"><strong>Update Available</strong></p>
        <p class="body-text">A new version (${esc(info.latestName || '')}) is available.</p>
      </div>`,
     [{
