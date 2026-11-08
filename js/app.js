@@ -87,6 +87,7 @@ const I18N = {
     'about.disclaimer': 'This is an unofficial viewer. Meter Manager is not affiliated with DESCO. All trademarks belong to their owners.',
     'err.network': 'Network error. Check your connection and try again.',
     'err.server': 'DESCO server is temporarily unreachable.',
+    'err.session': 'DESCO login expired. Please log in again from Settings → DESCO Login.',
     'time.just': 'just now', 'time.min': '{m} min ago', 'time.hour': '{h} hour ago', 'time.hours': '{h} hours ago',
     'time.day': '{d} day ago', 'time.days': '{d} days ago', 'time.month': '{m} month ago', 'time.months': '{m} months ago',
     'detail.balance_updated': 'Updated {t}',
@@ -197,6 +198,7 @@ const I18N = {
     'about.disclaimer': 'এটি একটি অনানুষ্ঠানিক ভিউয়ার। প্রিপেইডপ্রো ডেসকোর সাথে সম্পর্কিত নয়। সব ট্রেডমার্ক স্ব-স্ব মালিকের।',
     'err.network': 'নেটওয়ার্ক সমস্যা। সংযোগ পরীক্ষা করে আবার চেষ্টা করুন।',
     'err.server': 'ডেসকো সার্ভার সাময়িকভাবে অনুপলব্ধ।',
+    'err.session': 'ডেসকো লগইনের মেয়াদ শেষ হয়েছে। সেটিংস → DESCO Login থেকে আবার লগইন করুন।',
     'time.just': 'এইমাত্র', 'time.min': '{m} মিনিট আগে', 'time.hour': '{h} ঘণ্টা আগে', 'time.hours': '{h} ঘণ্টা আগে',
     'time.day': '{d} দিন আগে', 'time.days': '{d} দিন আগে', 'time.month': '{m} মাস আগে', 'time.months': '{m} মাস আগে',
     'detail.balance_updated': '{t} আপডেট হয়েছে',
@@ -413,6 +415,14 @@ function isDemo() {
 }
 function mockResponse(path) {
   const now = new Date();
+  /* Portal v2 path aliases — same demo payloads as the legacy names. */
+  if (path.includes('/accounts/link')) return { code: 200, desc: 'OK', data: { accountId: 'demo', accountNo: '10000001', sourceSystem: 'UNIFIED' } };
+  if (path.includes('/summary')) return { code: 200, desc: 'OK', data: { accountNo: '10000001', meterNo: '123456789012', customerName: 'Demo Customer', route: 'R-12', sanctionLoad: '5 kW', tariffSolution: 'D', phaseType: 'Single', status: 'Active' } };
+  if (path.includes('/usage/daily')) return mockResponse('getCustomerDailyConsumption');
+  if (path.includes('/usage/monthly')) return mockResponse('getCustomerMonthlyConsumption');
+  if (path.includes('/transactions')) return mockResponse('getRechargeHistory');
+  if (path.includes('/balance')) return mockResponse('getBalance');
+  if (path.includes('/accounts')) return { code: 200, desc: 'OK', data: { accounts: [{ accountId: 'demo', accountNo: '10000001', sourceSystem: 'UNIFIED', nickname: null }] } };
   if (path.includes('getCustomerInfo')) return { code: 200, desc: 'OK', data: { accountNo: '10000001', meterNo: '123456789012', customerName: 'Demo Customer', route: 'R-12', sanctionLoad: '5 kW', tariffSolution: 'D', phaseType: 'Single', status: 'Active' } };
   if (path.includes('getBalance')) return { code: 200, desc: 'OK', data: { balance: 480.5, readingTime: new Date(now.getTime() - 3600000).toISOString() } };
   if (path.includes('getCustomerDailyConsumption')) {
@@ -455,19 +465,8 @@ async function apiGet(url, params, timeoutMs = 25000) {
      the saved session cookie directly.  Cookies never leave the device.
      Rejections propagate — no fall-through to fetch, which would only mask
      the real error behind a CORS failure. */
-  const bridge = window.NescoBridge;
-  if (bridge && typeof bridge.descoApiGetAsync === 'function' && u.origin === DESCO) {
-    return await new Promise((resolve, reject) => {
-      const cbId = 'dapi' + Date.now() + Math.random().toString(36).slice(2, 7);
-      const pending = (window.__descoApiPending = window.__descoApiPending || {});
-      const tm = setTimeout(() => { delete pending[cbId]; reject(new Error('timeout')); }, timeoutMs);
-      pending[cbId] = {
-        resolve: json => { clearTimeout(tm); delete pending[cbId]; resolve(json); },
-        reject: err => { clearTimeout(tm); delete pending[cbId]; reject(err); }
-      };
-      try { bridge.descoApiGetAsync(u.toString(), cbId); }
-      catch (e) { clearTimeout(tm); delete pending[cbId]; reject(e); }
-    });
+  if (window.NescoBridge && u.origin === DESCO) {
+    return await descoNativeCall('GET', u.toString(), null, timeoutMs);
   }
 
   const ctrl = new AbortController();
@@ -492,28 +491,128 @@ async function apiGet(url, params, timeoutMs = 25000) {
     clearTimeout(tm);
   }
 }
-/* Native bridge reply for descoApiGetAsync — mirrors the fetch contract. */
+/* Native bridge reply for descoApiGetAsync/descoApiPostAsync — mirrors the fetch contract. */
 window.__descoApiResult = function(cbId, payload) {
   const pending = window.__descoApiPending || {};
   const cb = pending[cbId];
   if (!cb) return;
   let res = null;
   try { res = typeof payload === 'string' ? JSON.parse(payload) : payload; } catch (e) {}
-  if (!res || res.ok !== true) { cb.reject(new Error('http ' + (res && res.status ? res.status : 0))); return; }
+  if (!res || res.ok !== true) {
+    const st = res && res.status ? res.status : 0;
+    const err = new Error('http ' + st);
+    err.status = st; /* callers use this to spot an expired session (401) */
+    cb.reject(err);
+    return;
+  }
   try { cb.resolve(JSON.parse(res.body)); }
   catch (e) { cb.resolve({ code: -1, desc: 'bad json', data: null }); }
 };
-async function probeSystemType(accountNo, meterNo) {
-  const systems = ['tkdes', 'unified'];
-  const results = await Promise.allSettled(systems.map(sys =>
-    apiGet(`${DESCO}/api/${sys}/customer/getCustomerInfo`, { accountNo, meterNo })));
-  for (let i = 0; i < results.length; i++) {
-    const r = results[i];
-    if (r.status === 'fulfilled' && r.value && r.value.code === 200 && r.value.data && r.value.data.accountNo) {
-      return { sys: systems[i], info: r.value.data };
-    }
+/* Shared pending-callback plumbing for native DESCO requests. */
+function descoNativeCall(method, url, body, timeoutMs) {
+  return new Promise((resolve, reject) => {
+    const cbId = 'dapi' + Date.now() + Math.random().toString(36).slice(2, 7);
+    const pending = (window.__descoApiPending = window.__descoApiPending || {});
+    const tm = setTimeout(() => { delete pending[cbId]; reject(new Error('timeout')); }, timeoutMs);
+    pending[cbId] = {
+      resolve: json => { clearTimeout(tm); delete pending[cbId]; resolve(json); },
+      reject: err => { clearTimeout(tm); delete pending[cbId]; reject(err); }
+    };
+    try {
+      const bridge = window.NescoBridge;
+      if (method === 'POST') bridge.descoApiPostAsync(url, JSON.stringify(body || {}), cbId);
+      else bridge.descoApiGetAsync(url, cbId);
+    } catch (e) { clearTimeout(tm); delete pending[cbId]; reject(e); }
+  });
+}
+async function apiPost(url, bodyObj, timeoutMs = 25000) {
+  if (isDemo()) return mockResponse(url);
+  const u = new URL(url);
+  if (window.NescoBridge && u.origin === DESCO) return await descoNativeCall('POST', u.toString(), bodyObj, timeoutMs);
+  const ctrl = new AbortController();
+  const tm = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const res = await fetch(u, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify(bodyObj || {}), signal: ctrl.signal, cache: 'no-store', credentials: 'include' });
+    if (!res.ok) { const err = new Error('http ' + res.status); err.status = res.status; throw err; }
+    return await res.json().catch(() => null);
+  } finally { clearTimeout(tm); }
+}
+/* ================= DESCO prepaid portal v2 =================
+   DESCO launched a new prepaid portal: data now comes from
+   /api/accounts/{accountId}/… endpoints bound to the LINKED accounts of the
+   signed-in portal session (the old /api/{tkdes,unified}/customer/* paths
+   are gone).  accountId — not accountNo — selects the meter. */
+function descoApiBase() { return `${DESCO}/api`; }
+function descoUnwrap(r) {
+  /* demo/mock replies still use the legacy {code,data} envelope */
+  if (r && typeof r === 'object' && r.code !== undefined && 'data' in r) return r.code === 200 ? r.data : null;
+  return r;
+}
+function descoDailyAdapter(r) {
+  const d = descoUnwrap(r);
+  if (!Array.isArray(d)) return null;
+  /* v2 reports per-day deltas (dailyConsumedUnit); flag them so normalizeDaily
+     does not mistake a monotonically rising series for cumulative readings. */
+  return d.map(x => (x && (x.dailyConsumedUnit !== undefined || x.dailyConsumedTaka !== undefined))
+    ? { date: x.date, consumedUnit: x.dailyConsumedUnit, consumedTaka: x.dailyConsumedTaka, _delta: true }
+    : x);
+}
+function descoMonthlyAdapter(r) {
+  let d = descoUnwrap(r);
+  if (d && !Array.isArray(d) && Array.isArray(d.months)) d = d.months;
+  return Array.isArray(d) ? d : null;
+}
+function descoHistoryAdapter(r) {
+  const d = descoUnwrap(r);
+  if (!Array.isArray(d)) return null;
+  return d.map(x => Object.assign({}, x, (x && x.orderId && !x.orderID) ? { orderID: x.orderId } : {}));
+}
+function descoBalanceAdapter(r) {
+  const d = descoUnwrap(r);
+  return (d && d.balance !== undefined && d.balance !== null) ? d : null;
+}
+/* Resolves a DESCO account number to the portal's accountId, linking the
+   account to the signed-in portal session when it is not linked yet. */
+async function descoResolveAccount(accountNo, meterNo) {
+  if (isDemo()) {
+    return { accountId: 'demo', accountNo: accountNo || '10000001', sourceSystem: 'UNIFIED', info: descoUnwrap(mockResponse('getCustomerInfo')) };
   }
-  return null;
+  const key = String(accountNo || '').replace(/\D/g, '');
+  if (!key) throw Object.assign(new Error(t('add.notfound')), { code: 'notfound' });
+  const norm = v => String(v || '').replace(/\D/g, '');
+  const pick = list => (list || []).find(a => norm(a.accountNo) === key) || null;
+  const listAccounts = async () => {
+    try {
+      const r = descoUnwrap(await apiGet(`${descoApiBase()}/accounts`));
+      return (r && Array.isArray(r.accounts)) ? r.accounts : [];
+    } catch (e) { if (e && e.status === 401) throw e; return []; }
+  };
+  let found = pick(await listAccounts());
+  if (!found) {
+    /* Not linked to this portal session yet — link it (the portal's own
+       "Link account" form posts the same body). */
+    const linked = await apiPost(`${descoApiBase()}/accounts/link`, { accountNo: key, meterNo: meterNo || undefined }).catch(() => null);
+    if (linked && linked.accountId !== undefined && linked.accountId !== null) found = linked;
+    if (!found) found = pick(await listAccounts()); /* linking may have raced/failed */
+  }
+  if (!found || found.accountId === undefined || found.accountId === null) {
+    throw Object.assign(new Error(t('add.notfound')), { code: 'notfound' });
+  }
+  let info = null;
+  try { info = descoUnwrap(await apiGet(`${descoApiBase()}/accounts/${found.accountId}/summary`)); } catch (e) { /* optional */ }
+  return {
+    accountId: found.accountId,
+    accountNo: (info && info.accountNo) || found.accountNo || key,
+    sourceSystem: found.sourceSystem || 'UNIFIED',
+    info: (info && typeof info === 'object') ? info : { accountNo: found.accountNo || key }
+  };
+}
+/* Compatibility wrapper for window.__pp / older call sites. */
+async function probeSystemType(accountNo, meterNo) {
+  try {
+    const r = await descoResolveAccount(accountNo, meterNo);
+    return { sys: String(r.sourceSystem || 'unified').toLowerCase(), info: r.info };
+  } catch (e) { return null; }
 }
 function balanceOf(meter) {
   if (state && state.updatingForUpdate) return null;
@@ -570,53 +669,56 @@ async function refreshMeter(meter, opts = {}) {
 
 async function refreshMeterOnce(meter) {
   if (meter.provider === 'desco') {
-    if (!meter.info) {
-      const p = await probeSystemType(meter.accountNo, meter.meterNo);
-      if (!p) {
-        meter.err = t('add.notfound');
+    try {
+      /* Portal v2: everything hangs off the linked account's accountId. */
+      if (!meter.accountId) {
+        const r = await descoResolveAccount(meter.accountNo, meter.meterNo);
+        meter.accountId = r.accountId;
+        meter.sys = String(r.sourceSystem || meter.sys || 'unified').toLowerCase();
+        meter.accountNo = r.accountNo || meter.accountNo;
+        if (r.info && r.info.meterNo) meter.meterNo = r.info.meterNo;
+        if (r.info) meter.info = r.info;
+        saveMeters();
+      }
+      if (!meter.info) {
+        try {
+          const s = descoUnwrap(await apiGet(`${descoApiBase()}/accounts/${meter.accountId}/summary`));
+          if (s && typeof s === 'object') {
+            meter.info = s;
+            if (s.accountNo) meter.accountNo = s.accountNo;
+            if (s.meterNo) meter.meterNo = s.meterNo;
+          }
+        } catch (e) { /* customer card stays partial */ }
+      }
+      let balErr = null;
+      const [balR, dailyR] = await Promise.all([
+        apiGet(`${descoApiBase()}/accounts/${meter.accountId}/balance`).catch(e => { balErr = e; return null; }),
+        apiGet(`${descoApiBase()}/accounts/${meter.accountId}/usage/daily`, { dateFrom: todayStr(13), dateTo: todayStr(0) }).catch(() => null)
+      ]);
+      const daily = descoDailyAdapter(dailyR);
+      if (daily) {
+        meter.avgDailyCost = avgDailyCost(normalizeDaily(daily));
+        meter.dailyData = daily;
+      }
+      const bal = descoBalanceAdapter(balR);
+      if (bal) {
+        meter.balance = Number(bal.balance);
+        meter.readingTime = bal.readingTime || bal.receivedAt || meter.readingTime;
+        if (bal.meterNo) meter.meterNo = bal.meterNo;
+        meter.err = null;
+      } else if (balErr && balErr.status === 401) {
         meter.balance = null;
-        return;
+        meter.err = t('err.session');
+      } else if (balErr) {
+        throw balErr; /* network/timeout → retry loop */
+      } else {
+        meter.balance = null;
+        meter.err = t('err.server');
       }
-      meter.sys = p.sys;
-      meter.info = p.info;
-    }
-    if (meter.info) {
-      meter.accountNo = meter.info.accountNo || meter.accountNo;
-      meter.meterNo = meter.info.meterNo || meter.meterNo;
-    }
-    const params = { accountNo: meter.accountNo || undefined, meterNo: meter.meterNo || undefined };
-    const [balR, dailyR] = await Promise.all([
-      apiGet(`${DESCO}/api/${meter.sys}/customer/getBalance`, params)
-        .catch(() => ({ code: -1 })),
-      apiGet(`${DESCO}/api/${meter.sys}/customer/getCustomerDailyConsumption`,
-        Object.assign({}, params, { dateFrom: todayStr(13), dateTo: todayStr(0) }))
-        .catch(() => ({ data: [] }))
-    ]);
-    if (dailyR.code === 200 && Array.isArray(dailyR.data)) {
-      meter.avgDailyCost = avgDailyCost(normalizeDaily(dailyR.data));
-      meter.dailyData = dailyR.data;
-    }
-    const balOk = balR.code === 200 && balR.data && balR.data.balance !== undefined && balR.data.balance !== null;
-    if (!balOk && meter.sys) {
-      const alt = meter.sys === 'tkdes' ? 'unified' : 'tkdes';
-      const altR = await apiGet(`${DESCO}/api/${alt}/customer/getBalance`, params).catch(() => ({ code: -1 }));
-      if (altR.code === 200 && altR.data && altR.data.balance !== undefined && altR.data.balance !== null) {
-        meter.sys = alt;
-        balR.code = 200; balR.data = altR.data;
-      }
-    }
-    if (balOk || (balR.code === 200 && balR.data && balR.data.balance !== undefined && balR.data.balance !== null)) {
-      meter.balance = balR.data.balance;
-      meter.readingTime = balR.data.readingTime || meter.readingTime;
-      meter.err = null;
-    } else if (balR.code === 16001) {
-      meter.balance = null;
-      meter.err = balR.desc || t('add.notfound');
-    } else if (balR.code === -1) {
-      throw new Error('network');
-    } else {
-      meter.balance = null;
-      meter.err = t('err.server');
+    } catch (e) {
+      if (e && e.status === 401) { meter.balance = null; meter.err = t('err.session'); return; }
+      if (e && e.code === 'notfound') { meter.balance = null; meter.err = t('add.notfound'); return; }
+      throw e;
     }
   } else if (meter.provider === 'nesco') {
     const r = await nescoQuery(meter.consumerNo);
@@ -922,14 +1024,22 @@ async function doAddMeter(prov) {
         updatedAt: null, err: null, loading: true
       };
     } else {
-      const isAccount = raw.length === 8;
-      const probe = await probeSystemType(isAccount ? raw : undefined, isAccount ? undefined : raw);
-      if (!probe) { status.textContent = t('add.notfound'); return; }
+      /* DESCO portal v2 links by ACCOUNT number; a bare meter number can no
+         longer be looked up on its own. */
+      if (!/^\d{6,10}$/.test(raw)) { status.textContent = t('add.notfound'); return; }
+      let r;
+      try { r = await descoResolveAccount(raw); }
+      catch (e) {
+        status.textContent = (e && e.code === 'notfound') ? t('add.notfound')
+          : (t('add.error') + (e && e.message ? ' (' + e.message + ')' : ''));
+        return;
+      }
       meter = {
-        id: 'm' + Date.now(), provider: 'desco', sys: probe.sys,
-        accountNo: probe.info.accountNo, meterNo: probe.info.meterNo,
+        id: 'm' + Date.now(), provider: 'desco', sys: String(r.sourceSystem || 'unified').toLowerCase(),
+        accountId: r.accountId,
+        accountNo: r.accountNo, meterNo: (r.info && r.info.meterNo) || '',
         nickname: nickname || '',
-        info: probe.info, balance: null, readingTime: null, updatedAt: null, err: null, loading: true
+        info: r.info, balance: null, readingTime: null, updatedAt: null, err: null, loading: true
       };
     }
     state.meters.push(meter); saveMeters();
@@ -1119,14 +1229,16 @@ async function openSharedMeter() {
           updatedAt: null, err: null, loading: true
         };
       } else {
-        const isAcct = num.length === 8;
-        const probe = await probeSystemType(isAcct ? num : undefined, isAcct ? undefined : num);
-        if (!probe) throw new Error(t('add.notfound'));
+        /* DESCO portal v2 links by ACCOUNT number; a bare meter number can no
+           longer be looked up on its own. */
+        if (!/^\d{6,12}$/.test(num)) throw new Error(t('add.notfound'));
+        const r = await descoResolveAccount(num);
         meter = {
-          id: 'm' + Date.now(), provider: 'desco', sys: probe.sys,
-          accountNo: probe.info.accountNo, meterNo: probe.info.meterNo,
+          id: 'm' + Date.now(), provider: 'desco', sys: String(r.sourceSystem || 'unified').toLowerCase(),
+          accountId: r.accountId,
+          accountNo: r.accountNo, meterNo: (r.info && r.info.meterNo) || '',
           nickname: '',
-          info: probe.info, balance: null, readingTime: null, updatedAt: null, err: null, loading: true
+          info: r.info, balance: null, readingTime: null, updatedAt: null, err: null, loading: true
         };
       }
       state.meters.push(meter); saveMeters();
@@ -1366,18 +1478,30 @@ function kv(k, v) { return v ? `<tr><td style="color:var(--text-2)">${esc(k)}</t
 async function loadDetailData(m) {
   const wrap = $('#consumptionWrap'); if (!wrap) return;
   wrap.innerHTML = '<div class="spinner"></div>';
-  const params = { accountNo: m.accountNo, meterNo: m.meterNo };
+  /* Portal v2 needs the linked account's accountId; resolve it for meters
+     saved before the portal migration. */
+  if (!m.accountId) {
+    try {
+      const r = await descoResolveAccount(m.accountNo, m.meterNo);
+      m.accountId = r.accountId;
+      m.sys = String(r.sourceSystem || m.sys || 'unified').toLowerCase();
+      if (r.info) m.info = r.info;
+      if (r.info && r.info.meterNo) m.meterNo = r.info.meterNo;
+      saveMeters();
+    } catch (e) { /* charts stay empty; refresh will retry */ }
+  }
   let daily = [], monthly = [], hist = [];
-  try {
-    [daily, monthly, hist] = await Promise.all([
-      apiGet(`${DESCO}/api/${m.sys}/customer/getCustomerDailyConsumption`, Object.assign({}, params, { dateFrom: todayStr(14), dateTo: todayStr(1) }))
-        .then(r => (r.code === 200 && Array.isArray(r.data)) ? r.data : []).catch(() => []),
-      apiGet(`${DESCO}/api/${m.sys}/customer/getCustomerMonthlyConsumption`, Object.assign({}, params, { monthFrom: monthStr(11), monthTo: monthStr(0) }))
-        .then(r => (r.code === 200 && Array.isArray(r.data)) ? r.data : []).catch(() => []),
-      apiGet(`${DESCO}/api/${m.sys}/customer/getRechargeHistory`, Object.assign({}, params, { dateFrom: todayStr(364), dateTo: todayStr(0) }))
-        .then(r => (r.code === 200 && Array.isArray(r.data)) ? r.data : []).catch(() => [])
+  if (m.accountId) {
+    const base = `${descoApiBase()}/accounts/${m.accountId}`;
+    const [dR, mR, hR] = await Promise.all([
+      apiGet(`${base}/usage/daily`, { dateFrom: todayStr(14), dateTo: todayStr(1) }).catch(() => null),
+      apiGet(`${base}/usage/monthly`, { monthFrom: monthStr(11), monthTo: monthStr(0) }).catch(() => null),
+      apiGet(`${base}/transactions`, { dateFrom: todayStr(364), dateTo: todayStr(0) }).catch(() => null)
     ]);
-  } catch { /* partial ok */ }
+    daily = descoDailyAdapter(dR) || [];
+    monthly = descoMonthlyAdapter(mR) || [];
+    hist = descoHistoryAdapter(hR) || [];
+  }
 
   if (currentMeterId !== m.id) return;
   const days = normalizeDaily(daily);
@@ -1420,11 +1544,14 @@ function normalizeDaily(daily) {
     rows.push({
       d: d.slice(0, 10),
       unit: Number(r.consumedUnit) || Number(r.consumptionUnit) || 0,
-      taka: Number(r.consumedTaka) || Number(r.consumptionTaka) || 0
+      taka: Number(r.consumedTaka) || Number(r.consumptionTaka) || 0,
+      _delta: !!r._delta
     });
   }
   rows.sort((a, b) => a.d < b.d ? -1 : a.d > b.d ? 1 : 0);
-  let cumulative = rows.length > 1;
+  /* Portal v2 daily rows are already per-day deltas — never diff them. */
+  const anyDelta = rows.some(r => r._delta);
+  let cumulative = !anyDelta && rows.length > 1;
   if (cumulative) {
     for (let i = 1; i < rows.length; i++) {
       if (rows[i].unit < rows[i - 1].unit) { cumulative = false; break; }
@@ -1965,7 +2092,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.30'} (build ${'835'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.31'} (build ${'838'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {

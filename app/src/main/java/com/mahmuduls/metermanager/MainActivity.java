@@ -34,6 +34,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.regex.Matcher;
@@ -934,23 +935,27 @@ public class MainActivity extends Activity {
                 String payload;
                 try {
                     HttpsResult r = descoHttpGet(url, getDescoCookies());
-                    JSONObject out = new JSONObject();
-                    out.put("ok", r.code >= 200 && r.code < 300);
-                    out.put("status", r.code);
-                    out.put("body", r.body == null ? "" : r.body);
-                    payload = out.toString();
+                    payload = descoPayload(r.code, r.body);
                 } catch (Exception e) {
                     payload = "{\"ok\":false,\"status\":0,\"body\":\"\"}";
                 }
-                final String escaped = payload
-                    .replace("\\", "\\\\")
-                    .replace("'", "\\'")
-                    .replace("\n", "\\n")
-                    .replace("\r", "");
-                mainHandler.post(() -> webView.evaluateJavascript(
-                    "(function(){if(typeof window.__descoApiResult==='function'){window.__descoApiResult('"
-                        + cbId + "','" + escaped + "');}})()",
-                    null));
+                replyDescoApi(cbId, payload);
+            }).start();
+        }
+
+        /** CORS-free DESCO API POST (JSON body): used by the portal-v2
+            /accounts/link endpoint, which requires an X-XSRF-TOKEN header. */
+        @JavascriptInterface
+        public void descoApiPostAsync(final String url, final String body, final String cbId) {
+            new Thread(() -> {
+                String payload;
+                try {
+                    HttpsResult r = descoHttpPost(url, body, getDescoCookies());
+                    payload = descoPayload(r.code, r.body);
+                } catch (Exception e) {
+                    payload = "{\"ok\":false,\"status\":0,\"body\":\"\"}";
+                }
+                replyDescoApi(cbId, payload);
             }).start();
         }
 
@@ -1290,13 +1295,13 @@ public class MainActivity extends Activity {
         new Thread(() -> {
             int code = 0;
             try {
-                code = descoHttpGet(DESCO_PORTAL + "/api/tkdes/customer/getBalance", cookies).code;
+                code = descoHttpGet(DESCO_PORTAL + "/api/accounts", cookies).code;
             } catch (Exception e) {
                 Log.w(TAG, "desco add probe failed", e);
             }
-            // Auth is checked before anything else: 401 = not signed in, any
-            // other 2xx/4xx = the session is accepted (400/422 just mean the
-            // probe request had no parameters).
+            // Auth is checked before routing: 401 = not signed in, 200 = the
+            // session sees its linked accounts (any other 4xx just means the
+            // probe request was malformed — still treated as signed in).
             boolean authed = (code >= 200 && code < 300) || (code >= 400 && code < 500 && code != 401);
             Log.i(TAG, "desco add probe: HTTP " + code + " authed=" + authed);
             if (!authed || gen != descoFlowGen || !addingDescoAccount) {
@@ -1389,6 +1394,77 @@ public class MainActivity extends Activity {
         }
         conn.disconnect();
         return new HttpsResult(code, sb.toString(), null);
+    }
+
+    /** POST for the DESCO API: JSON body plus the X-XSRF-TOKEN header the
+        portal's CSRF protection requires on every non-GET request. */
+    private HttpsResult descoHttpPost(String urlStr, String jsonBody, String cookie) throws Exception {
+        URL url = new URL(urlStr);
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("POST");
+        conn.setConnectTimeout(10000);
+        conn.setReadTimeout(20000);
+        conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Mobile Safari/537.36");
+        conn.setRequestProperty("Accept", "application/json");
+        conn.setRequestProperty("Content-Type", "application/json");
+        if (cookie != null && !cookie.isEmpty()) {
+            conn.setRequestProperty("Cookie", cookie);
+            String xsrf = xsrfTokenFromCookies(cookie);
+            if (xsrf != null && !xsrf.isEmpty()) conn.setRequestProperty("X-XSRF-TOKEN", xsrf);
+        }
+        conn.setInstanceFollowRedirects(false);
+        conn.setDoOutput(true);
+        byte[] data = (jsonBody == null ? "{}" : jsonBody).getBytes(StandardCharsets.UTF_8);
+        try (OutputStream os = conn.getOutputStream()) { os.write(data); }
+
+        int code = conn.getResponseCode();
+        InputStream in = code >= 400 ? conn.getErrorStream() : conn.getInputStream();
+        StringBuilder sb = new StringBuilder();
+        if (in != null) {
+            BufferedReader br = new BufferedReader(new InputStreamReader(in));
+            String line;
+            while ((line = br.readLine()) != null) sb.append(line);
+            br.close();
+        }
+        conn.disconnect();
+        return new HttpsResult(code, sb.toString(), null);
+    }
+
+    /** Pulls the XSRF-TOKEN value out of a "Cookie:" header string. The portal
+        sends it URL-encoded; the X-XSRF-TOKEN header needs the decoded form. */
+    private static String xsrfTokenFromCookies(String cookieHeader) {
+        if (cookieHeader == null) return null;
+        for (String part : cookieHeader.split(";")) {
+            String p = part.trim();
+            if (p.startsWith("XSRF-TOKEN=")) {
+                String v = p.substring("XSRF-TOKEN=".length());
+                try { return URLDecoder.decode(v, "UTF-8"); }
+                catch (Exception e) { return v; }
+            }
+        }
+        return null;
+    }
+
+    /** JSON envelope shared by descoApiGetAsync / descoApiPostAsync. */
+    private static String descoPayload(int code, String body) throws Exception {
+        JSONObject out = new JSONObject();
+        out.put("ok", code >= 200 && code < 300);
+        out.put("status", code);
+        out.put("body", body == null ? "" : body);
+        return out.toString();
+    }
+
+    /** Escapes the payload and hands it to window.__descoApiResult(cbId, …). */
+    private void replyDescoApi(final String cbId, final String payload) {
+        final String escaped = payload
+            .replace("\\", "\\\\")
+            .replace("'", "\\'")
+            .replace("\n", "\\n")
+            .replace("\r", "");
+        mainHandler.post(() -> webView.evaluateJavascript(
+            "(function(){if(typeof window.__descoApiResult==='function'){window.__descoApiResult('"
+                + cbId + "','" + escaped + "');}})()",
+            null));
     }
 
     @Override
