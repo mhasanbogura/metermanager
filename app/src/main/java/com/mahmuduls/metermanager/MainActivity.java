@@ -838,7 +838,7 @@ public class MainActivity extends Activity {
             String activeId = prefs.getString("descoActiveId", "");
             if (!activeId.isEmpty()) {
                 try {
-                    JSONArray arr = new JSONArray(prefs.getString("descoAccounts", "[]"));
+                    JSONArray arr = loadDescoAccounts(prefs);
                     for (int i = 0; i < arr.length(); i++) {
                         JSONObject o = arr.getJSONObject(i);
                         if (activeId.equals(o.optString("id"))) return o.optString("cookies", "");
@@ -854,7 +854,7 @@ public class MainActivity extends Activity {
         public String getDescoAccounts() {
             try {
                 SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
-                JSONArray arr = new JSONArray(prefs.getString("descoAccounts", "[]"));
+                JSONArray arr = loadDescoAccounts(prefs);
                 String activeId = prefs.getString("descoActiveId", "");
                 JSONArray out = new JSONArray();
                 for (int i = 0; i < arr.length(); i++) {
@@ -877,6 +877,8 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public void openDescoLogin() {
             runOnUiThread(() -> {
+                descoFlowGen++;          // invalidate probes from any earlier attempt
+                descoValidating = false;
                 addingDescoAccount = true;
                 clearPortalCookies(); // fresh login form, not an existing session
                 webView.loadUrl(DESCO_PORTAL + "/");
@@ -887,7 +889,7 @@ public class MainActivity extends Activity {
         public void removeDescoAccount(String id) {
             try {
                 SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
-                JSONArray arr = new JSONArray(prefs.getString("descoAccounts", "[]"));
+                JSONArray arr = loadDescoAccounts(prefs);
                 JSONArray out = new JSONArray();
                 for (int i = 0; i < arr.length(); i++) {
                     JSONObject o = arr.getJSONObject(i);
@@ -915,7 +917,7 @@ public class MainActivity extends Activity {
         public void setDescoActive(String id) {
             try {
                 SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
-                JSONArray arr = new JSONArray(prefs.getString("descoAccounts", "[]"));
+                JSONArray arr = loadDescoAccounts(prefs);
                 for (int i = 0; i < arr.length(); i++) {
                     JSONObject o = arr.getJSONObject(i);
                     if (id.equals(o.optString("id"))) {
@@ -1164,6 +1166,11 @@ public class MainActivity extends Activity {
     /* Multi-account "Add account" flow: while true the WebView sits on the
        DESCO portal and we watch for a fresh DESCO_SESSION to appear. */
     private volatile boolean addingDescoAccount = false;
+    /* Serializes the async "is this session really signed in?" API probe. */
+    private volatile boolean descoValidating = false;
+    /* Bumped on every openDescoLogin so a stale probe from a cancelled flow
+       can never save its cookies or navigate the WebView. */
+    private volatile int descoFlowGen = 0;
     /* JSON handed to JS (__descoAccountAdded) once the app page is back. */
     private volatile String pendingDescoNotify = null;
 
@@ -1270,7 +1277,7 @@ public class MainActivity extends Activity {
             SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
             String activeId = prefs.getString("descoActiveId", "");
             if (activeId.isEmpty()) return;
-            JSONArray arr = new JSONArray(prefs.getString("descoAccounts", "[]"));
+            JSONArray arr = loadDescoAccounts(prefs);
             for (int i = 0; i < arr.length(); i++) {
                 JSONObject o = arr.getJSONObject(i);
                 if (activeId.equals(o.optString("id"))) {
@@ -1283,22 +1290,96 @@ public class MainActivity extends Activity {
         }
     }
 
-    /** Called on every DESCO portal page finish while "Add account" is running. */
+    /** Stored DESCO accounts with junk sessions filtered out.  An entry that
+        never obtained a DESCO_SESSION (an XSRF-TOKEN alone is set on every
+        anonymous portal visit) cannot authenticate, so it is dropped from the
+        list — and if the active id pointed at one, it is re-pointed at the
+        newest surviving account.  Prefs are rewritten only when something
+        actually changed. */
+    private JSONArray loadDescoAccounts(SharedPreferences prefs) {
+        try {
+            JSONArray arr = new JSONArray(prefs.getString("descoAccounts", "[]"));
+            JSONArray out = new JSONArray();
+            for (int i = 0; i < arr.length(); i++) {
+                JSONObject o = arr.getJSONObject(i);
+                if (o.optString("cookies").contains("DESCO_SESSION=")) out.put(o);
+            }
+            if (out.length() != arr.length()) {
+                String activeId = prefs.getString("descoActiveId", "");
+                boolean activeGone = !activeId.isEmpty();
+                for (int i = 0; i < out.length() && activeGone; i++) {
+                    if (activeId.equals(out.getJSONObject(i).optString("id"))) activeGone = false;
+                }
+                SharedPreferences.Editor ed = prefs.edit().putString("descoAccounts", out.toString());
+                if (activeGone) {
+                    if (out.length() > 0) {
+                        ed.putString("descoActiveId", out.getJSONObject(out.length() - 1).optString("id"));
+                    } else {
+                        ed.remove("descoActiveId");
+                    }
+                }
+                ed.apply();
+                Log.i(TAG, "pruned " + (arr.length() - out.length()) + " invalid DESCO account(s)");
+            }
+            return out;
+        } catch (Exception e) {
+            Log.w(TAG, "loadDescoAccounts failed", e);
+            return new JSONArray();
+        }
+    }
+
+    /** Called on every DESCO portal page finish while "Add account" is running.
+        Any portal visit carries an XSRF-TOKEN, so only a DESCO_SESSION counts
+        as a login — and even then the session is verified against the DESCO
+        API before it is stored, so a rejected or half-finished login can never
+        become an account. */
     private void maybeFinishDescoAdd(final WebView view) {
+        if (descoValidating) return; // a probe is already running
         String all = CookieManager.getInstance().getCookie(DESCO_PORTAL);
         String session = all == null ? "" : extractDescoSessionCookies(all);
-        if (session.isEmpty()) return; // still on the login form
-        addingDescoAccount = false;
-        // Best-effort label: the portal dashboard shows the 8-digit account
-        // number.  The SPA may render a moment after load, so wait briefly.
+        if (session.isEmpty() || !session.contains("DESCO_SESSION=")) return; // still on the login form
+        descoValidating = true;
         final String cookies = session;
-        view.postDelayed(() -> view.evaluateJavascript(
+        final int gen = descoFlowGen;
+        new Thread(() -> {
+            int code = 0;
+            try {
+                code = descoHttpGet(DESCO_PORTAL + "/api/tkdes/customer/getBalance", cookies).code;
+            } catch (Exception e) {
+                Log.w(TAG, "desco add probe failed", e);
+            }
+            // Auth is checked before anything else: 401 = not signed in, any
+            // other 2xx/4xx = the session is accepted (400/422 just mean the
+            // probe request had no parameters).
+            boolean authed = (code >= 200 && code < 300) || (code >= 400 && code < 500 && code != 401);
+            Log.i(TAG, "desco add probe: HTTP " + code + " authed=" + authed);
+            if (!authed || gen != descoFlowGen || !addingDescoAccount) {
+                // Not signed in yet (or the flow was cancelled) — keep waiting.
+                mainHandler.post(() -> descoValidating = false);
+                return;
+            }
+            // Signed in. Best-effort label: the dashboard shows the 8-digit
+            // account number; retry briefly because the SPA renders late.
+            mainHandler.post(() -> extractDescoLabel(view, cookies, gen, 0));
+        }).start();
+    }
+
+    /** Reads the 8-digit account number off the portal page for the account
+        label, retrying a few times while the dashboard SPA renders. */
+    private void extractDescoLabel(final WebView view, final String cookies, final int gen, final int attempt) {
+        view.evaluateJavascript(
             "(function(){var t=(document&&document.body&&document.body.innerText)||'';" +
             "var m=t.match(/\\b\\d{8}\\b/);return m?m[0]:''})()",
             value -> {
                 String label = (value == null || "null".equals(value)) ? "" : value.replace("\"", "");
+                if (label.isEmpty() && attempt < 3 && addingDescoAccount && gen == descoFlowGen) {
+                    view.postDelayed(() -> extractDescoLabel(view, cookies, gen, attempt + 1), 600);
+                    return;
+                }
+                descoValidating = false;
+                if (!addingDescoAccount || gen != descoFlowGen) return; // user backed out
                 finishDescoAdd(cookies, label);
-            }), 700);
+            });
     }
 
     /** Saves the captured session as an account, activates it, returns to the app. */
@@ -1306,7 +1387,7 @@ public class MainActivity extends Activity {
         String displayLabel = label;
         try {
             SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
-            JSONArray arr = new JSONArray(prefs.getString("descoAccounts", "[]"));
+            JSONArray arr = loadDescoAccounts(prefs);
             String id = null;
             for (int i = 0; i < arr.length(); i++) {
                 JSONObject o = arr.getJSONObject(i);
