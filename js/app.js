@@ -52,7 +52,7 @@ const I18N = {
     'settings.general': 'General Settings', 'settings.device_theme': 'Device Theme', 'settings.device_theme_hint': 'Automatically switch theme based on system',
     'settings.oled_theme': 'OLED Theme', 'settings.oled_theme_hint': 'Use OLED black backdrop for eye comfort',
     'settings.language': 'Language', 'settings.low_threshold': 'Low balance threshold', 'settings.low_threshold_hint': 'Default threshold (BDT)',
-    'settings.share': 'Share app', 'settings.get_app': 'Get Android App', 'settings.link_copied': 'Link copied!', 'settings.import_export': 'Import/Export Meter Data', 'settings.delete_all': 'Delete All Meters',
+    'settings.share': 'Share app', 'settings.get_app': 'Get Android App', 'settings.android_app_url': 'https://u2l.ai/MeterManager', 'settings.link_copied': 'Link copied!', 'settings.import_export': 'Import/Export Meter Data', 'settings.delete_all': 'Delete All Meters',
     'settings.about': 'About App', 'settings.contact': 'Contact Developer',
     'settings.no_desc': 'No description available.', 'settings.no_contact': 'No contact information available.',
     'detail.energy_amount': 'Energy Amount', 'detail.energy_kwh': 'Energy (kWh)', 'detail.vat_other': 'VAT & Other Charges',
@@ -73,6 +73,11 @@ const I18N = {
     'settings.data': 'Meter data', 'settings.data.note': 'Your meters are stored only in this browser (localStorage) and are never sent to any server other than the official DESCO portal API.',
     'settings.clear': 'Remove all meters & reset', 'settings.cleared': 'All meter data cleared.',
     'settings.perm': 'Enable notifications', 'settings.perm.granted': 'Notifications enabled',
+    'settings.update': 'Check for Updates', 'settings.update.title': 'Update App', 'settings.update.new': 'A new version is available ({v})',
+    'settings.update.current': 'Current: {v} (build {b})', 'settings.update.download': 'Download & Install',
+    'settings.update.no_new': 'You are using the latest version.', 'settings.update.downloading': 'Downloading update...',
+    'settings.update.installed': 'Download complete. Tap Install on the system prompt to update.', 'settings.update.failed': 'Update failed: {e}',
+    'settings.update.checking': 'Checking Google Drive for updates...', 'settings.update.android_only': 'Updates are available in the Android app only.',
     'help.q1': 'How do I add a meter?', 'help.a1': 'Open Home, tap Add meter, choose DESCO, then enter your DESCO prepaid account number (8 digits) or meter number (12 digits). If it exists in the DESCO database, its info will load.',
     'help.q2': 'Why does it say "Account No. does not exist"?', 'help.a2': 'The number was not found in the official DESCO prepaid database. Check the number printed on your meter, bill or receipt and try again.',
     'help.q3': 'Is my data safe?', 'help.a3': 'Yes. Your meter numbers stay in your browser only. All meter data is fetched live from the official DESCO portal and is never stored by this app.',
@@ -152,8 +157,12 @@ const I18N = {
     'settings.general': 'সাধারণ সেটিংস', 'settings.device_theme': 'ডিভাইস থিম', 'settings.device_theme_hint': 'সিস্টেমের উপর ভিত্তি করে স্বয়ংক্রিয়ভাবে থিম পরিবর্তন করুন',
     'settings.oled_theme': 'OLED থিম', 'settings.oled_theme_hint': 'চোখের আরামের জন্য OLED কালো ব্যাকড্রপ ব্যবহার করুন।',
     'settings.language': 'ভাষা', 'settings.low_threshold': 'কম ব্যালেন্স সীমা', 'settings.low_threshold_hint': 'ডিফল্ট সীমা (টাকায়)',
-    'settings.share': 'শেয়ার', 'settings.get_app': 'অ্যান্ড্রয়েড অ্যাপ নিন', 'settings.link_copied': 'লিংক কপি হয়েছে!', 'settings.import_export': 'মিটার ডেটা ইমপোর্ট/এক্সপোর্ট', 'settings.delete_all': 'সমস্ত মিটার মুছে ফেলুন',
+    'settings.share': 'শেয়ার', 'settings.get_app': 'অ্যান্ড্রয়েড অ্যাপ নিন', 'settings.android_app_url': 'https://u2l.ai/MeterManager', 'settings.link_copied': 'লিংক কপি হয়েছে!', 'settings.import_export': 'মিটার ডেটা ইমপোর্ট/এক্সপোর্ট', 'settings.delete_all': 'সমস্ত মিটার মুছে ফেলুন',
     'settings.about': 'অ্যাপ সম্পর্কে', 'settings.contact': 'ডেভেলপারের সাথে যোগাযোগ করুন',
+    'settings.update': 'আপডেট দেখুন', 'settings.update.title': 'অ্যাপ আপডেট', 'settings.update.new': 'নতুন সংস্করণ পাওয়া গেছে ({v})',
+    'settings.update.current': 'বর্তমান: {v} (বিল্ড {b})', 'settings.update.download': 'ডাউনলোড ও ইনস্টল',
+    'settings.update.no_new': 'আপনি সর্বশেষ সংস্করণ ব্যবহার করছেন।', 'settings.update.downloading': 'আপডেট ডাউনলোড হচ্ছে...',
+    'settings.update.checking': 'Google Drive-এ আপডেট খোঁজা হচ্ছে...', 'settings.update.android_only': 'আপডেট শুধু Android অ্যাপে পাওয়া যায়।',
     'settings.no_desc': 'কোনো বর্ণনা পাওয়া যায়নি।', 'settings.no_contact': 'কোনো যোগাযোগের তথ্য পাওয়া যায়নি।',
     'detail.energy_amount': 'এনার্জি অ্যামাউন্ট', 'detail.energy_kwh': 'এনার্জি (kWh)', 'detail.vat_other': 'ভ্যাট ও অন্যান্য চার্জ',
     'home.low': 'ব্যালেন্স কম',
@@ -214,7 +223,12 @@ const WHATSAPP = 'https://wa.me/8801721665453';
 const DESCO = 'https://prepaid.desco.org.bd';
 const NESCO_API = '/nesco';
 
-var state = { meters: [], settings: null };
+var state = {
+  meters: [],
+  settings: null,
+  /** When a forced update dialog is active, all meter reads must show "--" instead of live data. */
+  updatingForUpdate: false
+};
 var currentView = 'home';
 var currentMeterId = null;
 let homeScrollY = 0;
@@ -444,7 +458,11 @@ async function probeSystemType(accountNo, meterNo) {
   }
   return null;
 }
-function balanceOf(meter) { return meter.balance !== null && meter.balance !== undefined ? Number(meter.balance) : null; }
+function balanceOf(meter) {
+  if (state && state.updatingForUpdate) return null;
+  if (meter.loading) return null;
+  return meter.balance !== null && meter.balance !== undefined ? Number(meter.balance) : null;
+}
 function lowBalance(meter) { const b = balanceOf(meter); const th = (typeof isSharedView !== 'undefined' && isSharedView && currentView === 'meter') ? 0 : (meter.lowThreshold ?? state.settings.alertThreshold ?? LOW_BALANCE); return b !== null && b < th; }
 function median(arr) {
   if (!arr.length) return 0;
@@ -484,7 +502,7 @@ async function refreshMeter(meter, opts = {}) {
       await refreshMeterOnce(meter);
       break;
     } catch (e) {
-      meter.err = t('err.network');
+      meter.err = 'Network Error';
       if (t < maxTries) await new Promise(r => setTimeout(r, 1000 * t));
     }
   }
@@ -582,6 +600,7 @@ async function refreshAllMeters(opts = {}) {
       await refreshMeter(m, { silent: true, tries: opts.tries ?? 2 });
     } catch (e) {
       m.err = e.message || 'Error';
+      m.balance = null; // show -- on failure / no connection
     } finally {
       m.loading = false;
     }
@@ -590,7 +609,7 @@ async function refreshAllMeters(opts = {}) {
 }
 
 /* ================= dialogs ================= */
-function openDialog(title, bodyHtml, actions = []) {
+function openDialog(title, bodyHtml, actions = [], canClose = true) {
   $('#dlgTitle').textContent = title;
   $('#dlgBody').innerHTML = bodyHtml;
   $('#dlgActions').innerHTML = actions.map(a => {
@@ -606,14 +625,20 @@ function openDialog(title, bodyHtml, actions = []) {
     if (act && act.fn) act.fn(btn);
   };
   const dlg = $('#dlg');
-  dlg.onclick = e => { if (e.target === dlg) closeDialog(); };
+  dlg.onclick = e => { if (canClose && e.target === dlg) closeDialog(); };
+  let _closeCb = null;
+  if (typeof canClose === 'function') _closeCb = canClose;
   dlg.querySelectorAll('.btn').forEach(b => {
     b.ontouchstart = () => b.classList.add('pressed');
     b.ontouchend = () => b.classList.remove('pressed');
     b.ontouchcancel = () => b.classList.remove('pressed');
   });
 }
-function closeDialog() { $('#dlg').hidden = true; }
+function closeDialog() {
+  // Block dismissal while forced update is showing — no way out except the Update button
+  if (state.updatingForUpdate) return;
+  $('#dlg').hidden = true;
+}
 
 /* ================= add meter ================= */
 function showAddMeter() {
@@ -1097,7 +1122,7 @@ async function renderMeterDetail() {
         ${m.provider === 'nesco' && m.lastReading ? `<span>${esc(t('detail.reading_value', { v: m.lastReading }))}</span>` : ''}
         <span>${esc(t('detail.balance_updated', { t: timeAgo(m.readingTime ? new Date(m.readingTime).getTime() : m.updatedAt) }))}</span>
       </div>
-      ${m.loading ? '<div style="opacity:.9;font-size:12.5px">' + esc(t('home.refreshing')) + '</div>' : (m.err ? `<div style="opacity:.9;font-size:12.5px;color:#ffd9d9">${esc(m.err)}</div>` : '')}
+      ${m.loading ? '<div style="opacity:.9;font-size:12.5px">' + esc(t('home.refreshing')) + '</div>' : (m.err ? `<div style="opacity:.9;font-size:12.5px;color:#ffd9d9">${esc(m.err)}${window.NescoBridge ? '' : ' <a href="' + t('settings.android_app_url') + '" style="color:#3b82f6;text-decoration:underline">Get the Android app</a> to continue.'}</div>` : '')}
     </div>
     ${m.provider === 'desco' ? renderInfoCard(m) : ''}
     ${m.provider === 'desco' ? '<div id="totalUseWrap"></div>' : ''}
@@ -1497,32 +1522,32 @@ function renderHome() {
     return;
   }
   const list = state.meters.map(m => {
-    const b = balanceOf(m);
-    const low = lowBalance(m);
-    const errShort = m.err ? (m.err.length > 30 ? m.err.slice(0, 29) + '…' : m.err) : '';
-    const badge = m.err ? `<span class="mc-badge err" title="${esc(m.err)}">${esc(errShort)}</span>`
-      : m.loading ? `<span class="mc-badge ok">${esc(t('home.refreshing'))}</span>`
-      : ``;
-    const avg = m.avgDailyCost != null ? `<span class="mc-avg">${esc(t('home.avg_day', { v: fmtBdt(m.avgDailyCost) }))}</span>` : '';
-    return `<div class="meter-card" draggable="true" data-id="${m.id}" onclick="window.ppOpen('${m.id}')">
-      <div class="mc-top">
-        <span class="mc-provider">${m.provider === 'nesco' ? 'NESCO' : 'DESCO' + (m.sys === 'unified' ? ' · Unified' : '')}</span>
-        <div class="mc-actions">
-          <button class="mc-action mc-action-danger" title="${esc(t('btn.remove'))}" onclick="event.stopPropagation();window.ppRemove('${m.id}')">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
-          </button>
-          <button class="mc-action" title="${esc(t('btn.edit'))}" onclick="event.stopPropagation();window.ppEditMeter('${m.id}')">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
-          </button>
-          <button class="mc-action" title="${esc(t('btn.refresh'))}" onclick="event.stopPropagation();window.ppRefresh('${m.id}')">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.65 6.35A7.958 7.958 0 0012 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0112 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
-          </button>
-        </div>
-      </div>
-      <div class="mc-number">${esc(m.nickname || m.info?.customerName || m.info?.name || '')}${(m.nickname || m.info?.customerName || m.info?.name) ? '<br>' : ''}${esc(m.accountNo || m.meterNo || m.consumerNo)}</div>
-      <div class="mc-balance ${b !== null && low ? 'low' : ''}" style="${b !== null && low ? 'color:#ff6b6b' : ''}">${b === null ? '––' : fmtBdt(b)}${low ? ' <span style="font-size:12px;font-weight:700;color:#ff6b6b">' + esc(t('home.low')) + '</span>' : ''}</div>
-      <div class="mc-sub"><span>${avg || ''}</span><span>${m.readingTime ? esc(t('home.last_updated', { t: timeAgo(new Date(m.readingTime).getTime()) })) : (m.updatedAt ? esc(t('home.last_updated', { t: timeAgo(m.updatedAt) })) : esc(t('home.updated_never')))}</span>${badge}</div>
-    </div>`;
+     const b = balanceOf(m);
+     const low = lowBalance(m);
+     const errShort = m.err ? (m.err.length > 30 ? m.err.slice(0, 29) + '…' : m.err) : '';
+     const badge = m.err ? `<span class="mc-badge err" title="${esc(m.err)}">${esc(errShort)}</span>`
+       : m.loading ? `<span class="mc-badge ok">${esc(t('home.refreshing'))}</span>`
+       : ``;
+     const avg = (m.loading || m.err || m.avgDailyCost == null) ? `--` : `<span class="mc-avg">${esc(t('home.avg_day', { v: fmtBdt(m.avgDailyCost) }))}</span>`;
+     return `<div class="meter-card" draggable="true" data-id="${m.id}" onclick="window.ppOpen('${m.id}')">
+       <div class="mc-top">
+         <span class="mc-provider">${m.provider === 'nesco' ? 'NESCO' : 'DESCO' + (m.sys === 'unified' ? ' · Unified' : '')}</span>
+         <div class="mc-actions">
+           <button class="mc-action mc-action-danger" title="${esc(t('btn.remove'))}" onclick="event.stopPropagation();window.ppRemove('${m.id}')">
+             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+           </button>
+           <button class="mc-action" title="${esc(t('btn.edit'))}" onclick="event.stopPropagation();window.ppEditMeter('${m.id}')">
+             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+           </button>
+           <button class="mc-action" title="${esc(t('btn.refresh'))}" onclick="event.stopPropagation();window.ppRefresh('${m.id}')">
+             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.65 6.35A7.958 7.958 0 0012 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0112 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+           </button>
+         </div>
+       </div>
+       <div class="mc-number">${esc(m.nickname || m.info?.customerName || m.info?.name || '')}${(m.nickname || m.info?.customerName || m.info?.name) ? '<br>' : ''}${esc(m.accountNo || m.meterNo || m.consumerNo)}</div>
+        <div class="mc-balance ${b !== null && low ? 'low' : ''}" style="${b !== null && low ? 'color:#ff6b6b' : ''}">${(state.updatingForUpdate || m.loading || m.err) ? '--' : (b === null ? '––' : fmtBdt(b))}${low ? ' <span style="font-size:12px;font-weight:700;color:#ff6b6b">' + esc(t('home.low')) + '</span>' : ''}</div>
+       <div class="mc-sub"><span>${(m.loading || m.err) ? esc(t('home.avg_day', { v: '--' })) : avg}</span><span>${(m.loading || m.err) ? esc(t('home.last_updated', { t: '--' })) : (m.readingTime ? esc(t('home.last_updated', { t: timeAgo(new Date(m.readingTime).getTime()) })) : (m.updatedAt ? esc(t('home.last_updated', { t: timeAgo(m.updatedAt) })) : esc(t('home.updated_never'))))}</span>${badge}</div>
+     </div>`;
   }).join('');
   c.innerHTML = demoBanner + `
     <div style="display:flex;align-items:center;justify-content:space-between">
@@ -1838,6 +1863,11 @@ function renderSettings() {
     <div class="sett-section">
       <div class="sett-section-title">MORE</div>
       <div class="sett-section-card">
+        <div class="sett-item" id="btnUpdateApp" onclick="window.onForcedUpdateClick()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="opacity:.6"><path d="M17.65 6.35A7.95 7.95 0 0 0 12 4a8 8 0 1 0 7.73 10h-2.08A6 6 0 1 1 12 6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+          <span style="flex:1">${esc(t('settings.update.title'))}</span>
+          <svg class="sett-chevron" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
+        </div>
         ${(window.NescoBridge && window.NescoBridge.shareText) ? `
         <div class="sett-item" onclick="window._settingsShare()">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="opacity:.6"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/></svg>
@@ -1863,7 +1893,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.56'} (build ${'613'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.57'} (build ${'616'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
@@ -1999,6 +2029,207 @@ window._settingsContact = async function(el) {
   html += '</div>';
   openDialog('', html, []);
 };
+
+/* ================= app update · native Google Drive scan =================
+   Update availability is decided by the native Drive scanner (the same system
+   the App Store app uses): it lists the release folder in Google Drive, reads
+   the newest "Meter Manager_..._vX.Y.Z_build_NNN.apk" file and compares it with
+   the installed package. The browser build has no update channel, so nothing
+   runs there. */
+var _updateInfo = null;
+var _driveScanSeq = 0;
+var _driveScanCbs = {};
+
+window.__driveUpdateResult = function (cbId, json) {
+  var cb = _driveScanCbs[cbId];
+  if (!cb) return;
+  delete _driveScanCbs[cbId];
+  var data = null;
+  try { data = (typeof json === 'string') ? JSON.parse(json) : json; } catch (e) { data = null; }
+  cb(data);
+};
+
+function hasNativeDriveScan() {
+  return !!(window.NescoBridge && typeof window.NescoBridge.scanDriveForUpdate === 'function');
+}
+
+/* Resolves with the scanner JSON, or null when unsupported / timed out. */
+function scanDriveForUpdate() {
+  return new Promise(function (resolve) {
+    if (!hasNativeDriveScan()) { resolve(null); return; }
+    var id = 'driveupd' + (++_driveScanSeq);
+    var done = false;
+    var timer = setTimeout(function () {
+      if (!done && _driveScanCbs[id]) { delete _driveScanCbs[id]; resolve(null); }
+    }, 25000);
+    _driveScanCbs[id] = function (data) {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      resolve(data);
+    };
+    try { window.NescoBridge.scanDriveForUpdate(id); }
+    catch (e) { clearTimeout(timer); delete _driveScanCbs[id]; resolve(null); }
+  });
+}
+
+function startUpdateDownload(info) {
+  toast(t('settings.update.downloading'), false);
+  // Use the Drive file ID when available, so the APK is downloaded from Google Drive
+  // directly and the DownloadManager + install flow in MainActivity handles the rest.
+  if (window.NescoBridge && typeof window.NescoBridge.downloadDriveUpdate === 'function') {
+    if (info.fileId) {
+      window.NescoBridge.downloadDriveUpdate(info.fileId, info.fileName || 'MeterManager-update.apk');
+    } else if (typeof window.NescoBridge.downloadAndInstallApk === 'function' && info.downloadUrl) {
+      window.NescoBridge.downloadAndInstallApk(info.downloadUrl);
+    }
+  } else if (typeof window.NescoBridge !== 'undefined' && typeof window.NescoBridge.downloadAndInstallApk === 'function') {
+    window.NescoBridge.downloadAndInstallApk(info.downloadUrl);
+  } else {
+    try { location.href = info.downloadUrl; } catch (e) {}
+  }
+}
+
+/* Forced (non-dismissible) update dialog — only shown when a newer build exists. */
+function showForcedUpdatePopup(info) {
+  // Prevent duplicate popups
+  if ($('#dlg').hidden === false) return;
+
+  state.updatingForUpdate = true;
+  try { renderHome(); } catch (e) {}
+  _updateInfo = info;
+  
+  // Use custom dialog
+  openDialog(
+    '',
+    `<div style="text-align:center; padding: 2px 0;">
+       <img src="icons/icon-512.png" style="width: 36px; height: 36px; margin: 0 auto 2px auto; display: block;">
+       <p class="body-text" style="margin: 0; font-size: 15px; font-weight: bold;">Update Available</p>
+       <p class="body-text" style="margin: 2px 0 2px 0; font-size: 12.5px; color: #64748b;">A new version (${esc(info.latestName || '')}) is available.</p>
+     </div>`,
+    [{
+      key: 'update',
+      label: 'Update',
+      cls: 'primary',
+      fn: function(btn) {
+        // Change button to show progress
+        btn.style.width = '90%';
+        btn.style.margin = '2px auto 2px auto';
+        btn.style.padding = '8px';
+        btn.style.borderRadius = '12px';
+        btn.style.backgroundColor = '#2563eb';
+        btn.style.color = '#ffffff';
+        btn.style.border = 'none';
+        btn.textContent = 'Downloading... 0%';
+        
+        // Start download and pass a progress callback
+        startUpdateDownloadWithProgress(info, (percent) => {
+          if (percent < 100) {
+            btn.textContent = 'Downloading... ' + percent + '%';
+          } else {
+            btn.textContent = 'Installing...';
+          }
+        });
+      }
+    }],
+    false
+  );
+  
+  // Force button to be full width in CSS
+  setTimeout(() => {
+    const btn = $('#dlgActions .primary-action');
+    if (btn) {
+      btn.style.width = '90%';
+      btn.style.display = 'block';
+      btn.style.margin = '0 auto 2px auto';
+      btn.style.padding = '8px';
+      btn.style.borderRadius = '12px';
+      btn.style.backgroundColor = '#2563eb';
+      btn.style.color = '#ffffff';
+      btn.style.border = 'none';
+    }
+  }, 50);
+
+  // Disable background click for forced update
+  $('#dlg').onclick = e => { if (e.target === $('#dlg')) return; };
+}
+
+function startUpdateDownloadWithProgress(info, progressCb) {
+  if (window.NescoBridge && typeof window.NescoBridge.downloadAndInstallApk === 'function') {
+    window.NescoBridge.downloadAndInstallApk(info.downloadUrl);
+    
+    // Poll for download progress
+    let checkProgress = setInterval(() => {
+      if (window.NescoBridge && typeof window.NescoBridge.getDownloadProgress === 'function') {
+         let p = window.NescoBridge.getDownloadProgress();
+         progressCb(p);
+         if (p >= 100) clearInterval(checkProgress);
+      } else {
+         clearInterval(checkProgress);
+         progressCb(100); // Simulate install transition
+      }
+    }, 1000);
+    
+  } else {
+    try { location.href = info.downloadUrl; } catch (e) {}
+  }
+}
+
+function setUpdateButtonLabel(info) {
+  var btn = document.getElementById('btnUpdateApp');
+  if (!btn) return;
+  var span = btn.querySelector('span');
+  if (!span) return;
+  span.textContent = (info && info.available)
+    ? t('settings.update.new', { v: info.latestName || '' })
+    : t('settings.update.title');
+}
+
+async function checkAppUpdate() {
+  loadState();
+  if (!hasNativeDriveScan()) {
+    // No native scanning available (web/browser): clear flag immediately
+    state.updatingForUpdate = false;
+    renderHome(); // Ensure balances show
+    return;
+  }
+
+  // Skip setting updatingForUpdate = true here to avoid the intermediate state
+  var info = await scanDriveForUpdate();
+
+  if (!info || !info.ok || !info.available) {
+    // No update: clear flag and restore balances immediately
+    state.updatingForUpdate = false;
+    try { renderHome(); } catch (e) {}
+    return;
+  }
+
+  // Set flag to show '--' ONLY when an update is actually found
+  state.updatingForUpdate = true;
+  try { renderHome(); } catch (e) {}
+
+  setUpdateButtonLabel(info);
+  showForcedUpdatePopup(info);
+}
+
+window.onForcedUpdateClick = async function() {
+  loadState();
+  if (!hasNativeDriveScan()) {
+    toast(t('settings.update.android_only'), true);
+    return;
+  }
+  toast(t('settings.update.checking'), false);
+  var info = await scanDriveForUpdate();
+  setUpdateButtonLabel(info);
+  if (info && info.ok && info.available) {
+    showForcedUpdatePopup(info);
+  } else if (info && info.ok) {
+    toast(t('settings.update.no_new'), true);
+  } else {
+    toast(t('settings.update.failed', { e: (info && info.error) || 'Drive scan failed' }), true);
+  }
+};
+
 function applyLang() {
   langs = I18N[state.settings.lang] || I18N.en;
   document.documentElement.lang = state.settings.lang;
@@ -2296,6 +2527,13 @@ function dailyCacheCleanup() {
 }
 async function boot() {
   loadState();
+  
+  /* Initial load: Set m.loading = true
+     to show "--" and "Updating..." (Step 1/3) */
+  state.updatingForUpdate = false;
+  state.meters.forEach(m => { m.loading = true; m.err = null; });
+  renderHome();
+  
   /* LOCAL is already the default persistence; awaiting its IndexedDB write only
      delays the auth listener below, so fire it in the background instead. */
   try { auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {}); } catch {}
@@ -2328,6 +2566,8 @@ async function boot() {
       applyTheme();
       applyLang();
       state.meters.forEach(m => { m.loading = true; m.err = null; });
+      /* After auth, trigger auto-refresh so it starts with "--"
+         and then loads live values automatically. */
       renderHome();
       openSharedMeter();
       refreshAllMeters().then(() => renderHome());
@@ -2367,6 +2607,8 @@ async function boot() {
     }
   }
   try { await db.enablePersistence({ synchronizeTabs: true }); } catch {}
+  /* Check if a newer APK is available (sets up the Update App button if so). */
+  checkAppUpdate();
 }
 document.addEventListener('DOMContentLoaded', boot);
 
@@ -2396,7 +2638,7 @@ document.addEventListener('DOMContentLoaded', boot);
       label.textContent = t('home.refreshing');
       pill.classList.add('spinning');
       show(14);
-      refreshAllMeters().then(() => { renderHome(); hide(); });
+      refreshAllMeters().then(() => { renderHome(); checkAppUpdate(); hide(); });
     }
   }, { passive: true });
   home.addEventListener('touchend', () => { if (pulling) { pulling = false; hide(); } }, { passive: true });
