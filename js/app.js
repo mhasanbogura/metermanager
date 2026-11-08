@@ -452,23 +452,23 @@ async function apiGet(url, params, timeoutMs = 25000) {
 
   /* The DESCO portal API rejects every cross-origin browser request (CORS), so
      inside the app the call is routed through the native bridge, which sends
-     the saved session cookie directly.  Cookies never leave the device. */
-  try {
-    const bridge = window.NescoBridge;
-    if (bridge && typeof bridge.descoApiGetAsync === 'function' && u.origin === DESCO) {
-      return await new Promise((resolve, reject) => {
-        const cbId = 'dapi' + Date.now() + Math.random().toString(36).slice(2, 7);
-        const pending = (window.__descoApiPending = window.__descoApiPending || {});
-        const tm = setTimeout(() => { delete pending[cbId]; reject(new Error('timeout')); }, timeoutMs);
-        pending[cbId] = {
-          resolve: json => { clearTimeout(tm); delete pending[cbId]; resolve(json); },
-          reject: err => { clearTimeout(tm); delete pending[cbId]; reject(err); }
-        };
-        try { bridge.descoApiGetAsync(u.toString(), cbId); }
-        catch (e) { clearTimeout(tm); delete pending[cbId]; reject(e); }
-      });
-    }
-  } catch (e) { /* fall through to fetch */ }
+     the saved session cookie directly.  Cookies never leave the device.
+     Rejections propagate — no fall-through to fetch, which would only mask
+     the real error behind a CORS failure. */
+  const bridge = window.NescoBridge;
+  if (bridge && typeof bridge.descoApiGetAsync === 'function' && u.origin === DESCO) {
+    return await new Promise((resolve, reject) => {
+      const cbId = 'dapi' + Date.now() + Math.random().toString(36).slice(2, 7);
+      const pending = (window.__descoApiPending = window.__descoApiPending || {});
+      const tm = setTimeout(() => { delete pending[cbId]; reject(new Error('timeout')); }, timeoutMs);
+      pending[cbId] = {
+        resolve: json => { clearTimeout(tm); delete pending[cbId]; resolve(json); },
+        reject: err => { clearTimeout(tm); delete pending[cbId]; reject(err); }
+      };
+      try { bridge.descoApiGetAsync(u.toString(), cbId); }
+      catch (e) { clearTimeout(tm); delete pending[cbId]; reject(e); }
+    });
+  }
 
   const ctrl = new AbortController();
   const tm = setTimeout(() => ctrl.abort(), timeoutMs);
@@ -554,13 +554,13 @@ async function refreshMeter(meter, opts = {}) {
   meter.loading = true;
   if (!opts.silent) renderHome();
   const maxTries = opts.tries ?? 3;
-  for (let t = 1; t <= maxTries; t++) {
+  for (let i = 1; i <= maxTries; i++) {
     try {
       await refreshMeterOnce(meter);
       break;
     } catch (e) {
       meter.err = t('err.network');
-      if (t < maxTries) await new Promise(r => setTimeout(r, 1000 * t));
+      if (i < maxTries) await new Promise(r => setTimeout(r, 1000 * i));
     }
   }
   meter.updatedAt = Date.now();
@@ -1965,7 +1965,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.27'} (build ${'826'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.28'} (build ${'829'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
