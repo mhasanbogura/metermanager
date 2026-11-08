@@ -97,6 +97,7 @@ public class MainActivity extends Activity {
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
         settings.setAllowFileAccess(true);
+        CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true);
         settings.setAllowContentAccess(true);
         settings.setCacheMode(WebSettings.LOAD_DEFAULT);
         webView.setBackgroundColor(0xFF000000);
