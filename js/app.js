@@ -438,8 +438,29 @@ async function apiGet(url, params, timeoutMs = 25000) {
   if (params) for (const k in params) if (params[k] !== undefined && params[k] !== null && params[k] !== '') u.searchParams.set(k, params[k]);
   const ctrl = new AbortController();
   const tm = setTimeout(() => ctrl.abort(), timeoutMs);
+
+  /* Inject DESCO session cookies captured from the official portal login. */
+  let finalHeaders = Object.assign({ Accept: 'application/json' }, {});
   try {
-    const res = await fetch(u, { method: 'GET', headers: { Accept: 'application/json' }, signal: ctrl.signal, cache: 'no-store' });
+    const bridge = window.NescoBridge;
+    if (bridge && typeof bridge.getDescoCookies === 'function') {
+      const cookies = bridge.getDescoCookies();
+      if (cookies) {
+        for (var i = 0; i < cookies.split(';').length; i++) {
+          const part = cookies.split(';')[i].trim();
+          if (!part) continue;
+          const eq = part.indexOf('=');
+          const name = eq >= 0 ? part.slice(0, eq) : part;
+          const val = eq >= 0 ? part.slice(eq + 1) : '';
+          finalHeaders = Object.assign({}, finalHeaders);
+        finalHeaders['Cookie'] = name + '=' + val;
+        }
+      }
+    }
+  } catch (e) { /* ignore bridge errors */ }
+
+  try {
+    const res = await fetch(u, { method: 'GET', headers: Object.assign({ Accept: 'application/json' }, {}), signal: ctrl.signal, cache: 'no-store' });
     if (!res.ok) throw new Error('http ' + res.status);
     const json = await res.json().catch(() => ({ code: -1, desc: 'bad json', data: null }));
     return json;
@@ -1922,7 +1943,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.59'} (build ${'622'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.64'} (build ${'637'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
@@ -1959,6 +1980,7 @@ window._settingsDescoLogin = function() {
     saveSettings();
     renderSettings();
     toast(t('settings.cleared'));
+    try { window.NescoBridge && window.NescoBridge.resetDescoSessionFlag && window.NescoBridge.resetDescoSessionFlag(); } catch (e) {}
   } else {
     // Redirect to DESCO portal to log in.
     // The native Android side will need to intercept the cookies after login.

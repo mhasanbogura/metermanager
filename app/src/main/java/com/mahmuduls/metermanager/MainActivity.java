@@ -12,7 +12,10 @@ import android.view.View;
 import android.view.Window;
 import android.view.WindowInsetsController;
 import android.view.WindowManager;
+import android.webkit.CookieManager;
 import android.webkit.JavascriptInterface;
+import android.content.SharedPreferences;
+
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
@@ -45,6 +48,7 @@ public class MainActivity extends Activity {
     private WebView webView;
     private static final String TAG = "MeterManager";
     private static final String WEB_URL = "https://mhasanbogura.github.io/metermanager/";
+    private static final String DESCO_PORTAL = "https://prepaid.desco.org.bd";
     private static final String PANEL = "https://customer.nesco.gov.bd/pre/panel";
     private static final String SUBMIT_HISTORY = "\u09B0\u09BF\u099A\u09BE\u09B0\u09CD\u099C \u09B9\u09BF\u09B8\u09CD\u099F\u09CD\u09B0\u09BF";
     private static final String SUBMIT_MONTHLY = "\u09AE\u09BE\u09B8\u09BF\u0995 \u09AC\u09CD\u09AF\u09AC\u09B9\u09BE\u09B0";
@@ -164,11 +168,20 @@ public class MainActivity extends Activity {
             }
         });
 
+        final boolean[] descoCookieExtracted = {false}; // once extracted for this session
         webView.setWebViewClient(new WebViewClient() {
             @Override
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
+                if (url != null && url.startsWith(DESCO_PORTAL)) {
+                    // Trigger cookie capture after user logs in on the DESCO portal
+                    view.evaluateJavascript("NescoBridge.saveDescoCookies();", null);
+                }
                 injectOverrides();
+                if (!descoCookieExtracted[0] && url != null && url.startsWith(DESCO_PORTAL)) {
+                    descoCookieExtracted[0] = true;
+                    extractAndStoreDescoCookies(url);
+                }
                 view.evaluateJavascript(
                     "(function(){var t=document.querySelector('meta[name=theme-color]');return t?t.content:'light'})()",
                     value -> {
@@ -773,6 +786,22 @@ public class MainActivity extends Activity {
 
     class NescoBridge {
         @JavascriptInterface
+        public void saveDescoCookies() {
+            CookieManager cm = CookieManager.getInstance();
+            String cookies = cm.getCookie(DESCO_PORTAL);
+            if (cookies != null) {
+                getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit()
+                    .putString("descoCookies", cookies)
+                    .apply();
+            }
+        }
+
+        @JavascriptInterface
+        public String getDescoCookies() {
+            return getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+                .getString("descoCookies", "");
+        }
+        @JavascriptInterface
         public String nescoLookupSync(String cust) {
             return nescoLookupImpl(cust);
         }
@@ -810,6 +839,7 @@ public class MainActivity extends Activity {
             }
             return "";
         }
+
 
         @JavascriptInterface
         public void clipboardWrite(String text) {
@@ -970,6 +1000,55 @@ public class MainActivity extends Activity {
             int nightMask = getResources().getConfiguration().uiMode & android.content.res.Configuration.UI_MODE_NIGHT_MASK;
             return nightMask == android.content.res.Configuration.UI_MODE_NIGHT_YES;
         }
+    }
+
+    /* ---------- DESCO login cookie capture ---------- */
+    private boolean descoCookieExtracted = false; // once extracted for this session
+
+    /* Extracts DESCO session cookies (DESCO_SESSION, XSRF-TOKEN) from CookieManager
+       right after the login page loads, persists them in SharedPreferences, then
+       pushes them into window.fetch() so API requests carry them as headers. */
+    private void extractAndStoreDescoCookies(String url) {
+        if (url == null) return;
+        try {
+            CookieManager cm = CookieManager.getInstance();
+            String allCookies = cm.getCookie(DESCO_PORTAL);
+            if (allCookies == null || allCookies.isEmpty()) return;
+
+            // Collect only DESCO_SESSION / XSRF-TOKEN entries
+            StringBuilder sb = new StringBuilder();
+            for (String pair : allCookies.split("\n")) {
+                int semi = pair.indexOf(';');
+                if (semi < 0) semi = -1;
+                String name = pair.substring(0, semi).trim();
+                if ("DESCO_SESSION".equals(name) || "XSRF-TOKEN".equals(name)) {
+                    if (sb.length() > 0) sb.append("; ");
+                    sb.append(name).append('=').append(pair.substring(semi + 1));
+                }
+            }
+            if (sb.length() == 0) return; // nothing we need captured
+
+            // Persist into SharedPreferences
+            SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+            prefs.edit().putString("descoSession", sb.toString()).apply();
+
+            // Inject into the web context for API header injection
+            final String payload = sb.toString();
+            webView.evaluateJavascript(
+                "(function(){try{var c='" + escapeForJsString(payload) + "';var headers=[];for(var i=0;i<c.split(';').length;i++){var p=c.split(';')[i].trim().split('=');if(p[0]&&p[1])headers.push(p[0]+'='+p[1]);}window.__descoHeaders=headers;}catch(e){}})()",
+                null);
+        } catch (Exception e) {
+            Log.w(TAG, "DESCO cookie extraction error", e);
+        }
+    }
+
+    /** Reset the extraction flag when user clicks "Remove DESCO Account". */
+    public void resetDescoSessionFlag() {
+        descoCookieExtracted = false;
+    }
+
+    private static String escapeForJsString(String s) {
+        return s.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n");
     }
 
     @Override
