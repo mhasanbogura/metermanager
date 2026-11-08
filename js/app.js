@@ -105,6 +105,12 @@ const I18N = {
     'auth.send_reset': 'Send Reset Link', 'auth.fill_all': 'Fill all fields', 'auth.reset_sent': 'Reset link sent!',
     'settings.account': 'Account', 'settings.account_name': 'Name', 'settings.account_email': 'Email',
     'settings.desco_login': 'DESCO Login', 'settings.desco_logout': 'Remove DESCO Account',
+    'settings.desco_hint': 'Portal sessions are saved on this device only.',
+    'settings.desco_add_account': 'Add account', 'settings.desco_no_accounts': 'No DESCO account added yet.',
+    'settings.desco_active': 'Active', 'settings.desco_use': 'Use',
+    'settings.desco_remove_confirm': 'Remove this DESCO account? Its saved session will be deleted from this device.',
+    'settings.desco_removed': 'DESCO account removed', 'settings.desco_switched': 'DESCO account switched',
+    'settings.desco_added': 'DESCO account added: {n}',
     'settings.sign_out': 'Sign Out', 'settings.delete_account': 'Delete Account',
     'settings.reset_password': 'Reset Password',
     'settings.cloud_sync': 'Cloud Sync', 'settings.cloud_synced': 'Meters synced to your account',
@@ -210,6 +216,13 @@ const I18N = {
     'settings.account': 'অ্যাকাউন্ট', 'settings.account_name': 'নাম', 'settings.account_email': 'ইমেইল',
     'settings.sign_out': 'সাইন আউট', 'settings.delete_account': 'অ্যাকাউন্ট মুছে ফেলুন',
     'settings.reset_password': 'পাসওয়ার্ড রিসেট',
+    'settings.desco_login': 'DESCO লগইন',
+    'settings.desco_hint': 'পোর্টাল সেশন শুধু এই ডিভাইসে সংরক্ষিত থাকে।',
+    'settings.desco_add_account': 'অ্যাকাউন্ট যোগ করুন', 'settings.desco_no_accounts': 'এখনো কোনো DESCO অ্যাকাউন্ট যোগ করা হয়নি।',
+    'settings.desco_active': 'সক্রিয়', 'settings.desco_use': 'ব্যবহার করুন',
+    'settings.desco_remove_confirm': 'এই DESCO অ্যাকাউন্টটি মুছে ফেলবেন? এর সংরক্ষিত সেশন এই ডিভাইস থেকে মুছে যাবে।',
+    'settings.desco_removed': 'DESCO অ্যাকাউন্ট মুছে ফেলা হয়েছে', 'settings.desco_switched': 'DESCO অ্যাকাউন্ট পরিবর্তন হয়েছে',
+    'settings.desco_added': 'DESCO অ্যাকাউন্ট যোগ হয়েছে: {n}',
     'settings.cloud_sync': 'ক্লাউড সিঙ্ক', 'settings.cloud_synced': 'মিটার আপনার অ্যাকাউন্টে সিঙ্ক হয়েছে',
     'settings.cloud_offline': 'অফলাইন – তথ্য স্থানীয়ভাবে সংরক্ষিত',
   }
@@ -436,31 +449,42 @@ async function apiGet(url, params, timeoutMs = 25000) {
   if (isDemo()) return mockResponse(url);
   const u = new URL(url);
   if (params) for (const k in params) if (params[k] !== undefined && params[k] !== null && params[k] !== '') u.searchParams.set(k, params[k]);
+
+  /* The DESCO portal API rejects every cross-origin browser request (CORS), so
+     inside the app the call is routed through the native bridge, which sends
+     the saved session cookie directly.  Cookies never leave the device. */
+  try {
+    const bridge = window.NescoBridge;
+    if (bridge && typeof bridge.descoApiGetAsync === 'function' && u.origin === DESCO) {
+      return await new Promise((resolve, reject) => {
+        const cbId = 'dapi' + Date.now() + Math.random().toString(36).slice(2, 7);
+        const pending = (window.__descoApiPending = window.__descoApiPending || {});
+        const tm = setTimeout(() => { delete pending[cbId]; reject(new Error('timeout')); }, timeoutMs);
+        pending[cbId] = {
+          resolve: json => { clearTimeout(tm); delete pending[cbId]; resolve(json); },
+          reject: err => { clearTimeout(tm); delete pending[cbId]; reject(err); }
+        };
+        try { bridge.descoApiGetAsync(u.toString(), cbId); }
+        catch (e) { clearTimeout(tm); delete pending[cbId]; reject(e); }
+      });
+    }
+  } catch (e) { /* fall through to fetch */ }
+
   const ctrl = new AbortController();
   const tm = setTimeout(() => ctrl.abort(), timeoutMs);
 
   /* Inject DESCO session cookies captured from the official portal login. */
-  let finalHeaders = Object.assign({ Accept: 'application/json' }, {});
+  let finalHeaders = { Accept: 'application/json' };
   try {
     const bridge = window.NescoBridge;
     if (bridge && typeof bridge.getDescoCookies === 'function') {
       const cookies = bridge.getDescoCookies();
-      if (cookies) {
-        for (var i = 0; i < cookies.split(';').length; i++) {
-          const part = cookies.split(';')[i].trim();
-          if (!part) continue;
-          const eq = part.indexOf('=');
-          const name = eq >= 0 ? part.slice(0, eq) : part;
-          const val = eq >= 0 ? part.slice(eq + 1) : '';
-          finalHeaders = Object.assign({}, finalHeaders);
-        finalHeaders['Cookie'] = name + '=' + val;
-        }
-      }
+      if (cookies) finalHeaders['Cookie'] = cookies;
     }
   } catch (e) { /* ignore bridge errors */ }
 
   try {
-    const res = await fetch(u, { method: 'GET', headers: Object.assign({ Accept: 'application/json' }, {}), signal: ctrl.signal, cache: 'no-store' });
+    const res = await fetch(u, { method: 'GET', headers: finalHeaders, signal: ctrl.signal, cache: 'no-store', credentials: 'include' });
     if (!res.ok) throw new Error('http ' + res.status);
     const json = await res.json().catch(() => ({ code: -1, desc: 'bad json', data: null }));
     return json;
@@ -468,6 +492,17 @@ async function apiGet(url, params, timeoutMs = 25000) {
     clearTimeout(tm);
   }
 }
+/* Native bridge reply for descoApiGetAsync — mirrors the fetch contract. */
+window.__descoApiResult = function(cbId, payload) {
+  const pending = window.__descoApiPending || {};
+  const cb = pending[cbId];
+  if (!cb) return;
+  let res = null;
+  try { res = typeof payload === 'string' ? JSON.parse(payload) : payload; } catch (e) {}
+  if (!res || res.ok !== true) { cb.reject(new Error('http ' + (res && res.status ? res.status : 0))); return; }
+  try { cb.resolve(JSON.parse(res.body)); }
+  catch (e) { cb.resolve({ code: -1, desc: 'bad json', data: null }); }
+};
 async function probeSystemType(accountNo, meterNo) {
   const systems = ['tkdes', 'unified'];
   const results = await Promise.allSettled(systems.map(sys =>
@@ -1794,42 +1829,23 @@ function renderSettings() {
       </div>
     </div>` : '';
 
+  /* DESCO portal sessions are stored natively (SharedPreferences), never in
+     Firebase — only the account list (id/label) is read here for the UI. */
+  let descoCount = 0;
+  try {
+    if (window.NescoBridge && typeof window.NescoBridge.getDescoAccounts === 'function') {
+      descoCount = JSON.parse(window.NescoBridge.getDescoAccounts() || '[]').length;
+    }
+  } catch (e) {}
+
   $('#settingsContent').innerHTML = `
     <h2 class="section-title" style="margin-bottom:0">${esc(t('settings.title'))}</h2>
     <p class="muted" style="margin-bottom:8px">${esc(t('settings.subtitle'))}</p>
 
     ${profileHtml}
 
-      <div class="sett-section">
-        <div class="sett-section-title">${esc(t('settings.account'))}</div>
-        <div class="sett-section-card">
-          <div class="row" style="cursor:pointer" id="settDescoLogin">
-            <div style="display:flex;align-items:center;gap:12px;flex:1">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" style="opacity:.6"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/></svg>
-              <div>${esc(state.descoSession ? t('settings.desco_logout') : t('settings.desco_login'))}</div>
-            </div>
-          </div>
-        <div class="sett-section">
-        <div class="sett-section-title">${esc(t('settings.account'))}</div>
-        <div class="sett-section-card">
-          <div class="row" style="cursor:pointer" id="settDescoLogin">
-            <div style="display:flex;align-items:center;gap:12px;flex:1">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" style="opacity:.6"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/></svg>
-              <div>${esc(state.descoSession ? t('settings.desco_logout') : t('settings.desco_login'))}</div>
-            </div>
-          </div>
-          ${currentUser ? `
-          <div class="row" style="cursor:pointer" id="settSignOut">
-            <div style="display:flex;align-items:center;gap:12px;flex:1">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" style="opacity:.6"><path d="M10.09 15.59L11.5 17l5-5-5-5-1.41 1.41L12.67 11H3v2h9.67l-2.58 2.59zM19 3H5c-1.11 0-2 .9-2 2v4h2V5h14v14H5v-4H3v4c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/></svg>
-              <div>${esc(t('settings.sign_out'))}</div>
-            </div>
-          </div>
-          ` : ''}
-        </div>
-      </div>
-        </div>
-      </div>
+    <div class="sett-section">
+      <div class="sett-section-title">${esc(t('settings.general'))}</div>
       <div class="sett-section-card">
 
         <div class="row" style="justify-content:space-between;gap:12px">
@@ -1882,6 +1898,12 @@ function renderSettings() {
     <div class="sett-section">
       <div class="sett-section-title">ACCOUNT</div>
       <div class="sett-section-card">
+        <div class="sett-item" onclick="window._settingsDescoLogin()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="opacity:.6"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/></svg>
+          <span style="flex:1">${esc(t('settings.desco_login'))}</span>
+          ${descoCount ? `<span class="hint" style="margin:0 8px 0 0">${descoCount}</span>` : ''}
+          <svg class="sett-chevron" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
+        </div>
         <div class="sett-item" onclick="showImportExport()">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="opacity:.6"><path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z"/></svg>
           <span style="flex:1">${esc(t('settings.import_export'))}</span>
@@ -1943,7 +1965,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.68'} (build ${'649'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.27'} (build ${'826'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
@@ -1974,19 +1996,70 @@ function renderSettings() {
 }
 function syncSettingsUi() {
 }
+/* ---------- DESCO portal accounts ----------
+   Session cookies live natively in SharedPreferences (never Firebase/cloud).
+   This popup lists saved accounts with per-account Use/Remove + Add account. */
+function descoAccountsList() {
+  try {
+    if (window.NescoBridge && typeof window.NescoBridge.getDescoAccounts === 'function') {
+      return JSON.parse(window.NescoBridge.getDescoAccounts() || '[]');
+    }
+  } catch (e) {}
+  return [];
+}
 window._settingsDescoLogin = function() {
-  if (state.descoSession) {
-    state.descoSession = null;
-    saveSettings();
-    renderSettings();
-    toast(t('settings.cleared'));
-    try { window.NescoBridge && window.NescoBridge.resetDescoSessionFlag && window.NescoBridge.resetDescoSessionFlag(); } catch (e) {}
+  const accounts = descoAccountsList();
+  let body = `<p class="body-text" style="margin-top:0">${esc(t('settings.desco_hint'))}</p>`;
+  if (accounts.length) {
+    body += `<div class="sett-section-card" style="margin-bottom:12px">` + accounts.map(a => `
+        <div class="sett-item" style="cursor:default">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="opacity:.6"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/></svg>
+          <span style="flex:1">${esc(a.label || 'Account')}</span>
+          ${a.active
+            ? `<span class="hint" style="margin:0 4px 0 0;color:var(--accent)">${esc(t('settings.desco_active'))}</span>`
+            : `<button type="button" class="btn secondary sm" onclick="window._settingsDescoUse('${a.id}')">${esc(t('settings.desco_use'))}</button>`}
+          <button type="button" class="btn danger sm" style="margin-left:6px" onclick="window._settingsDescoRemove('${a.id}')">${esc(t('btn.remove'))}</button>
+        </div>`).join('') + `
+      </div>`;
   } else {
-    // Open the DESCO portal in the system browser (Chrome Custom Tab) so it
-    // renders properly and the user can log in.  The app will capture cookies
-    // via the native bridge when the user returns.
-    window.open('https://prepaid.desco.org.bd/', '_blank');
+    body += `<p class="hint" style="margin:0 0 4px">${esc(t('settings.desco_no_accounts'))}</p>`;
   }
+  openDialog(t('settings.desco_login'), body, [
+    { key: 'add', label: t('settings.desco_add_account'), cls: '', fn: () => { closeDialog(); window._settingsDescoAddAccount(); } },
+    { key: 'close', label: t('btn.close'), cls: 'secondary', fn: closeDialog }
+  ]);
+};
+window._settingsDescoAddAccount = function() {
+  try {
+    if (window.NescoBridge && typeof window.NescoBridge.openDescoLogin === 'function') {
+      /* Native opens the official portal inside the app and captures the
+         DESCO_SESSION / XSRF-TOKEN cookies when the login completes. */
+      window.NescoBridge.openDescoLogin();
+      return;
+    }
+  } catch (e) {}
+  location.href = 'https://prepaid.desco.org.bd/'; /* plain web: log in on the portal */
+};
+window._settingsDescoUse = function(id) {
+  try { window.NescoBridge && window.NescoBridge.setDescoActive && window.NescoBridge.setDescoActive(id); } catch (e) {}
+  window._settingsDescoLogin();
+  toast(t('settings.desco_switched'));
+};
+window._settingsDescoRemove = function(id) {
+  openDialog(t('btn.remove'), `<p class="body-text">${esc(t('settings.desco_remove_confirm'))}</p>`, [
+    { key: 'cancel', label: t('btn.cancel'), cls: 'secondary', fn: closeDialog },
+    { key: 'remove', label: t('btn.remove'), cls: 'danger', fn: () => {
+        closeDialog();
+        try { window.NescoBridge && window.NescoBridge.removeDescoAccount && window.NescoBridge.removeDescoAccount(id); } catch (e) {}
+        toast(t('settings.desco_removed'));
+        if (typeof currentView !== 'undefined' && currentView === 'settings') renderSettings();
+      } }
+  ]);
+};
+/* Native calls this after a portal login finished and the app is back in view. */
+window.__descoAccountAdded = function(info) {
+  toast(t('settings.desco_added', { n: (info && info.label) || '' }));
+  if (typeof currentView !== 'undefined' && currentView === 'settings') renderSettings();
 };
 window._settingsSignOut = function() {
   openDialog(t('settings.sign_out'), '<p class="body-text">Sign out from your account?</p>', [

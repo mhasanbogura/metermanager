@@ -29,6 +29,7 @@ import com.google.android.gms.common.api.ApiException;
 import com.google.android.gms.tasks.Task;
 
 import java.io.BufferedReader;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
@@ -37,6 +38,9 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 import android.app.DownloadManager;
 import android.content.BroadcastReceiver;
@@ -184,11 +188,27 @@ public class MainActivity extends Activity {
                 if (url != null && url.startsWith(DESCO_PORTAL)) {
                     // Trigger cookie capture after user logs in on the DESCO portal
                     view.evaluateJavascript("NescoBridge.saveDescoCookies();", null);
+                    // "Add account" flow: a fresh DESCO_SESSION means login done.
+                    if (addingDescoAccount) maybeFinishDescoAdd(view);
                 }
                 injectOverrides();
                 if (!descoCookieExtracted[0] && url != null && url.startsWith(DESCO_PORTAL)) {
                     descoCookieExtracted[0] = true;
                     extractAndStoreDescoCookies(url);
+                }
+                if (url != null && url.startsWith(WEB_URL)) {
+                    if (pendingDescoNotify != null) {
+                        // Back from the portal with a newly captured account — tell JS.
+                        String payload = pendingDescoNotify;
+                        pendingDescoNotify = null;
+                        addingDescoAccount = false;
+                        view.evaluateJavascript(
+                            "window.__descoAccountAdded&&window.__descoAccountAdded(" + payload + ")", null);
+                    } else {
+                        // Normal app (re)load: make sure the active account's
+                        // session is in the cookie jar before API calls go out.
+                        restoreActiveDescoCookies();
+                    }
                 }
                 view.evaluateJavascript(
                     "(function(){var t=document.querySelector('meta[name=theme-color]');return t?t.content:'light'})()",
@@ -264,6 +284,14 @@ public class MainActivity extends Activity {
 
     @Override
     public void onBackPressed() {
+        String curUrl = webView.getUrl();
+        if (addingDescoAccount && curUrl != null && curUrl.startsWith(DESCO_PORTAL)) {
+            // User backed out of the "Add account" portal login — return to the
+            // app; onPageFinished restores the active account's cookies.
+            addingDescoAccount = false;
+            webView.loadUrl(WEB_URL);
+            return;
+        }
         webView.evaluateJavascript(
             "(function(){" +
             "  var d=document.getElementById('dlg');" +
@@ -806,9 +834,129 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String getDescoCookies() {
-            return getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
-                .getString("descoCookies", "");
+            SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+            String activeId = prefs.getString("descoActiveId", "");
+            if (!activeId.isEmpty()) {
+                try {
+                    JSONArray arr = new JSONArray(prefs.getString("descoAccounts", "[]"));
+                    for (int i = 0; i < arr.length(); i++) {
+                        JSONObject o = arr.getJSONObject(i);
+                        if (activeId.equals(o.optString("id"))) return o.optString("cookies", "");
+                    }
+                } catch (Exception e) { /* fall through to legacy key */ }
+            }
+            return prefs.getString("descoCookies", "");
         }
+
+        /** Saved DESCO accounts as JSON: [{id,label,active,addedAt}] — cookie
+            values are deliberately NOT exposed to JavaScript. */
+        @JavascriptInterface
+        public String getDescoAccounts() {
+            try {
+                SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+                JSONArray arr = new JSONArray(prefs.getString("descoAccounts", "[]"));
+                String activeId = prefs.getString("descoActiveId", "");
+                JSONArray out = new JSONArray();
+                for (int i = 0; i < arr.length(); i++) {
+                    JSONObject o = arr.getJSONObject(i);
+                    JSONObject j = new JSONObject();
+                    j.put("id", o.optString("id"));
+                    j.put("label", o.optString("label"));
+                    j.put("addedAt", o.optLong("addedAt"));
+                    j.put("active", activeId.equals(o.optString("id")));
+                    out.put(j);
+                }
+                return out.toString();
+            } catch (Exception e) {
+                return "[]";
+            }
+        }
+
+        /** Opens the official portal so the user can sign in to another account;
+            onPageFinished captures the session and stores it as a new account. */
+        @JavascriptInterface
+        public void openDescoLogin() {
+            runOnUiThread(() -> {
+                addingDescoAccount = true;
+                clearPortalCookies(); // fresh login form, not an existing session
+                webView.loadUrl(DESCO_PORTAL + "/");
+            });
+        }
+
+        @JavascriptInterface
+        public void removeDescoAccount(String id) {
+            try {
+                SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+                JSONArray arr = new JSONArray(prefs.getString("descoAccounts", "[]"));
+                JSONArray out = new JSONArray();
+                for (int i = 0; i < arr.length(); i++) {
+                    JSONObject o = arr.getJSONObject(i);
+                    if (!id.equals(o.optString("id"))) out.put(o);
+                }
+                String activeId = prefs.getString("descoActiveId", "");
+                SharedPreferences.Editor ed = prefs.edit().putString("descoAccounts", out.toString());
+                if (id.equals(activeId)) {
+                    if (out.length() > 0) {
+                        JSONObject next = out.getJSONObject(out.length() - 1);
+                        ed.putString("descoActiveId", next.optString("id"));
+                        applyCookiesToJar(next.optString("cookies"));
+                    } else {
+                        ed.remove("descoActiveId");
+                        clearPortalCookies();
+                    }
+                }
+                ed.apply();
+            } catch (Exception e) {
+                Log.w(TAG, "removeDescoAccount failed", e);
+            }
+        }
+
+        @JavascriptInterface
+        public void setDescoActive(String id) {
+            try {
+                SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+                JSONArray arr = new JSONArray(prefs.getString("descoAccounts", "[]"));
+                for (int i = 0; i < arr.length(); i++) {
+                    JSONObject o = arr.getJSONObject(i);
+                    if (id.equals(o.optString("id"))) {
+                        prefs.edit().putString("descoActiveId", id).apply();
+                        applyCookiesToJar(o.optString("cookies"));
+                        return;
+                    }
+                }
+            } catch (Exception e) {
+                Log.w(TAG, "setDescoActive failed", e);
+            }
+        }
+
+        /** CORS-free DESCO API GET: runs on the bridge thread, replies through
+            window.__descoApiResult(cbId, {ok,status,body}). */
+        @JavascriptInterface
+        public void descoApiGetAsync(final String url, final String cbId) {
+            new Thread(() -> {
+                String payload;
+                try {
+                    HttpsResult r = descoHttpGet(url, getDescoCookies());
+                    JSONObject out = new JSONObject();
+                    out.put("ok", r.code >= 200 && r.code < 300);
+                    out.put("status", r.code);
+                    out.put("body", r.body == null ? "" : r.body);
+                    payload = out.toString();
+                } catch (Exception e) {
+                    payload = "{\"ok\":false,\"status\":0,\"body\":\"\"}";
+                }
+                final String escaped = payload
+                    .replace("\\", "\\\\")
+                    .replace("'", "\\'")
+                    .replace("\n", "\\n")
+                    .replace("\r", "");
+                mainHandler.post(() -> webView.evaluateJavascript(
+                    "(function(){if(typeof window.__descoApiResult==='function'){window.__descoApiResult('"
+                        + cbId + "','" + escaped + "');}})()",
+                    null));
+            }).start();
+        }
+
         @JavascriptInterface
         public String nescoLookupSync(String cust) {
             return nescoLookupImpl(cust);
@@ -1013,6 +1161,12 @@ public class MainActivity extends Activity {
     /* ---------- DESCO login cookie capture ---------- */
     private boolean descoCookieExtracted = false; // once extracted for this session
 
+    /* Multi-account "Add account" flow: while true the WebView sits on the
+       DESCO portal and we watch for a fresh DESCO_SESSION to appear. */
+    private volatile boolean addingDescoAccount = false;
+    /* JSON handed to JS (__descoAccountAdded) once the app page is back. */
+    private volatile String pendingDescoNotify = null;
+
     /* Extracts DESCO session cookies (DESCO_SESSION, XSRF-TOKEN) from CookieManager
        right after the login page loads, persists them in SharedPreferences, then
        pushes them into window.fetch() so API requests carry them as headers. */
@@ -1057,6 +1211,157 @@ public class MainActivity extends Activity {
 
     private static String escapeForJsString(String s) {
         return s.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n");
+    }
+
+    /* ---------- multi-account DESCO login ---------- */
+
+    /** "DESCO_SESSION=...; XSRF-TOKEN=..." out of a raw Cookie header, or "". */
+    private static String extractDescoSessionCookies(String all) {
+        StringBuilder sb = new StringBuilder();
+        for (String pair : all.split(";")) {
+            String p = pair.trim();
+            int eq = p.indexOf('=');
+            if (eq <= 0) continue;
+            String name = p.substring(0, eq);
+            if ("DESCO_SESSION".equals(name) || "XSRF-TOKEN".equals(name)) {
+                if (sb.length() > 0) sb.append("; ");
+                sb.append(p);
+            }
+        }
+        return sb.toString();
+    }
+
+    /** Expires every cookie the portal set, so "Add account" shows a fresh login form. */
+    private void clearPortalCookies() {
+        try {
+            CookieManager cm = CookieManager.getInstance();
+            String all = cm.getCookie(DESCO_PORTAL);
+            if (all != null) {
+                for (String p : all.split(";")) {
+                    String name = p.split("=")[0].trim();
+                    if (!name.isEmpty()) cm.setCookie(DESCO_PORTAL, name + "=; Max-Age=0; path=/");
+                }
+            }
+            cm.flush();
+        } catch (Exception e) {
+            Log.w(TAG, "clear portal cookies failed", e);
+        }
+    }
+
+    /** Writes a stored cookie string back into the WebView cookie jar. */
+    private void applyCookiesToJar(String cookieHeader) {
+        try {
+            CookieManager cm = CookieManager.getInstance();
+            if (cookieHeader != null && !cookieHeader.isEmpty()) {
+                for (String p : cookieHeader.split(";")) {
+                    String pair = p.trim();
+                    if (!pair.isEmpty()) cm.setCookie(DESCO_PORTAL, pair + "; path=/");
+                }
+            }
+            cm.flush();
+        } catch (Exception e) {
+            Log.w(TAG, "apply cookies failed", e);
+        }
+    }
+
+    /** Puts the active account's saved session into the jar (called on app load). */
+    private void restoreActiveDescoCookies() {
+        try {
+            SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+            String activeId = prefs.getString("descoActiveId", "");
+            if (activeId.isEmpty()) return;
+            JSONArray arr = new JSONArray(prefs.getString("descoAccounts", "[]"));
+            for (int i = 0; i < arr.length(); i++) {
+                JSONObject o = arr.getJSONObject(i);
+                if (activeId.equals(o.optString("id"))) {
+                    applyCookiesToJar(o.optString("cookies"));
+                    return;
+                }
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "restore desco cookies failed", e);
+        }
+    }
+
+    /** Called on every DESCO portal page finish while "Add account" is running. */
+    private void maybeFinishDescoAdd(final WebView view) {
+        String all = CookieManager.getInstance().getCookie(DESCO_PORTAL);
+        String session = all == null ? "" : extractDescoSessionCookies(all);
+        if (session.isEmpty()) return; // still on the login form
+        addingDescoAccount = false;
+        // Best-effort label: the portal dashboard shows the 8-digit account
+        // number.  The SPA may render a moment after load, so wait briefly.
+        final String cookies = session;
+        view.postDelayed(() -> view.evaluateJavascript(
+            "(function(){var t=(document&&document.body&&document.body.innerText)||'';" +
+            "var m=t.match(/\\b\\d{8}\\b/);return m?m[0]:''})()",
+            value -> {
+                String label = (value == null || "null".equals(value)) ? "" : value.replace("\"", "");
+                finishDescoAdd(cookies, label);
+            }), 700);
+    }
+
+    /** Saves the captured session as an account, activates it, returns to the app. */
+    private void finishDescoAdd(String cookies, String label) {
+        String displayLabel = label;
+        try {
+            SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+            JSONArray arr = new JSONArray(prefs.getString("descoAccounts", "[]"));
+            String id = null;
+            for (int i = 0; i < arr.length(); i++) {
+                JSONObject o = arr.getJSONObject(i);
+                if (cookies.equals(o.optString("cookies"))) { id = o.optString("id"); break; }
+            }
+            if (id == null) {
+                id = "d" + System.currentTimeMillis();
+                if (displayLabel == null || displayLabel.isEmpty()) displayLabel = "Account " + (arr.length() + 1);
+                JSONObject o = new JSONObject();
+                o.put("id", id);
+                o.put("label", displayLabel);
+                o.put("addedAt", System.currentTimeMillis());
+                o.put("cookies", cookies);
+                arr.put(o);
+            } else if (displayLabel == null || displayLabel.isEmpty()) {
+                for (int i = 0; i < arr.length(); i++) {
+                    JSONObject o = arr.getJSONObject(i);
+                    if (id.equals(o.optString("id"))) { displayLabel = o.optString("label"); break; }
+                }
+            }
+            prefs.edit().putString("descoAccounts", arr.toString()).putString("descoActiveId", id).apply();
+            JSONObject notify = new JSONObject();
+            notify.put("label", displayLabel == null ? "" : displayLabel);
+            notify.put("count", arr.length());
+            pendingDescoNotify = notify.toString();
+        } catch (Exception e) {
+            Log.w(TAG, "save desco account failed", e);
+        }
+        webView.loadUrl(WEB_URL);
+    }
+
+    /** GET for the DESCO API: no Origin header (CORS is browser-only) and the
+        active account's session cookie attached. */
+    private HttpsResult descoHttpGet(String urlStr, String cookie) throws Exception {
+        URL url = new URL(urlStr);
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("GET");
+        conn.setConnectTimeout(10000);
+        conn.setReadTimeout(20000);
+        conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Mobile Safari/537.36");
+        conn.setRequestProperty("Accept", "application/json");
+        if (cookie != null && !cookie.isEmpty()) conn.setRequestProperty("Cookie", cookie);
+        conn.setInstanceFollowRedirects(false);
+
+        int code = conn.getResponseCode();
+        InputStream in = code >= 400 ? conn.getErrorStream() : conn.getInputStream();
+        StringBuilder sb = new StringBuilder();
+        if (in != null) {
+            BufferedReader br = new BufferedReader(new InputStreamReader(in));
+            String line;
+            while ((line = br.readLine()) != null) sb.append(line);
+            br.close();
+        }
+        conn.disconnect();
+        return new HttpsResult(code, sb.toString(), null);
     }
 
     @Override
