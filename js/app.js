@@ -1943,7 +1943,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.66'} (build ${'643'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.67'} (build ${'646'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
@@ -1982,11 +1982,13 @@ window._settingsDescoLogin = function() {
     toast(t('settings.cleared'));
     try { window.NescoBridge && window.NescoBridge.resetDescoSessionFlag && window.NescoBridge.resetDescoSessionFlag(); } catch (e) {}
   } else {
-    // Redirect to DESCO portal to log in.
-    // The native Android side will need to intercept the cookies after login.
-    location.href = 'https://prepaid.desco.org.bd/';
+    // Open the DESCO portal in the system browser (Chrome Custom Tab) so it
+    // renders properly and the user can log in.  The app will capture cookies
+    // via the native bridge when the user returns.
+    window.open('https://prepaid.desco.org.bd/', '_blank');
   }
 };
+window._settingsSignOut = function() {
   openDialog(t('settings.sign_out'), '<p class="body-text">Sign out from your account?</p>', [
     { key: 'cancel', label: t('btn.cancel'), cls: 'secondary', fn: closeDialog },
     { key: 'signout', label: t('settings.sign_out'), cls: 'danger', fn: () => { closeDialog(); signOut(); } }
