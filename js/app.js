@@ -104,6 +104,7 @@ const I18N = {
     'auth.forgot_title': 'Forgot Password', 'auth.forgot_hint': "We'll send you a reset link",
     'auth.send_reset': 'Send Reset Link', 'auth.fill_all': 'Fill all fields', 'auth.reset_sent': 'Reset link sent!',
     'settings.account': 'Account', 'settings.account_name': 'Name', 'settings.account_email': 'Email',
+    'settings.desco_login': 'DESCO Login', 'settings.desco_logout': 'Remove DESCO Account',
     'settings.sign_out': 'Sign Out', 'settings.delete_account': 'Delete Account',
     'settings.reset_password': 'Reset Password',
     'settings.cloud_sync': 'Cloud Sync', 'settings.cloud_synced': 'Meters synced to your account',
@@ -1778,8 +1779,36 @@ function renderSettings() {
 
     ${profileHtml}
 
-    <div class="sett-section">
-      <div class="sett-section-title">${esc(t('settings.general'))}</div>
+      <div class="sett-section">
+        <div class="sett-section-title">${esc(t('settings.account'))}</div>
+        <div class="sett-section-card">
+          <div class="row" style="cursor:pointer" id="settDescoLogin">
+            <div style="display:flex;align-items:center;gap:12px;flex:1">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" style="opacity:.6"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/></svg>
+              <div>${esc(state.descoSession ? t('settings.desco_logout') : t('settings.desco_login'))}</div>
+            </div>
+          </div>
+        <div class="sett-section">
+        <div class="sett-section-title">${esc(t('settings.account'))}</div>
+        <div class="sett-section-card">
+          <div class="row" style="cursor:pointer" id="settDescoLogin">
+            <div style="display:flex;align-items:center;gap:12px;flex:1">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" style="opacity:.6"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/></svg>
+              <div>${esc(state.descoSession ? t('settings.desco_logout') : t('settings.desco_login'))}</div>
+            </div>
+          </div>
+          ${currentUser ? `
+          <div class="row" style="cursor:pointer" id="settSignOut">
+            <div style="display:flex;align-items:center;gap:12px;flex:1">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" style="opacity:.6"><path d="M10.09 15.59L11.5 17l5-5-5-5-1.41 1.41L12.67 11H3v2h9.67l-2.58 2.59zM19 3H5c-1.11 0-2 .9-2 2v4h2V5h14v14H5v-4H3v4c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/></svg>
+              <div>${esc(t('settings.sign_out'))}</div>
+            </div>
+          </div>
+          ` : ''}
+        </div>
+      </div>
+        </div>
+      </div>
       <div class="sett-section-card">
 
         <div class="row" style="justify-content:space-between;gap:12px">
@@ -1893,7 +1922,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.58'} (build ${'619'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.2.59'} (build ${'622'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
@@ -1924,7 +1953,18 @@ function renderSettings() {
 }
 function syncSettingsUi() {
 }
-window._settingsSignOut = function() {
+window._settingsDescoLogin = function() {
+  if (state.descoSession) {
+    state.descoSession = null;
+    saveSettings();
+    renderSettings();
+    toast(t('settings.cleared'));
+  } else {
+    // Redirect to DESCO portal to log in.
+    // The native Android side will need to intercept the cookies after login.
+    location.href = 'https://prepaid.desco.org.bd/';
+  }
+};
   openDialog(t('settings.sign_out'), '<p class="body-text">Sign out from your account?</p>', [
     { key: 'cancel', label: t('btn.cancel'), cls: 'secondary', fn: closeDialog },
     { key: 'signout', label: t('settings.sign_out'), cls: 'danger', fn: () => { closeDialog(); signOut(); } }
