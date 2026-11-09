@@ -2647,9 +2647,8 @@ async function emailLogin() {
     if (e.code === 'auth/invalid-credential' || e.code === 'auth/user-not-found' || e.code === 'auth/wrong-password') {
       try {
         const methods = await auth.fetchSignInMethodsForEmail(email);
-        if (methods && methods.includes('google.com')) m = 'This account was created with Google. Use "Login with Google".';
-        else if (methods && methods.includes('password')) m = 'Incorrect email or password. Check your password or use "Forgot Password?".';
-        else m = 'No account found. Please sign up.';
+        if (methods && methods.includes('google.com') && !methods.includes('password')) m = 'This account was created with Google. Use "Login with Google".';
+        else m = 'Incorrect email or password. Check your password or use "Forgot Password?".';
       } catch { m = 'Incorrect email or password. Check your password or use "Forgot Password?".'; }
     }
     toast(m, true);
