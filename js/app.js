@@ -1565,7 +1565,7 @@ async function loadDetailData(m) {
   const hWrap = $('#historyWrap'); if (!hWrap) return;
   hWrap.innerHTML = renderHistory(hist);
   const tWrap = $('#totalUseWrap');
-  if (tWrap) tWrap.innerHTML = renderTotalUse(monthly, hist, m.balance);
+  if (tWrap) tWrap.innerHTML = renderTotalUse(m, monthly, hist, m.balance);
   if (hist.length > 0) {
     const total = hist.reduce((s, r) => s + (Number(r.totalAmount) || 0), 0);
     const el = $('#histTotal'); if (el) el.textContent = fmtBdt(total);
@@ -1804,44 +1804,27 @@ function showUsageTip() {
   tip.style.left = Math.round(left) + 'px';
   tip.style.top = Math.round(top) + 'px';
 }
-function renderTotalUse(monthly, hist, balance) {
+function renderTotalUse(m, monthly, hist, balance) {
   const nm = normalizeMonthly(monthly);
   const lastMonth = nm[nm.length - 2] || { taka: 0, unit: 0 };
-  const h = hist || [];
-  if (h.length && balance != null) {
-    let totalTaka = 0;
-    let earliest = null;
-    for (const r of h) {
-      totalTaka += Number(r.totalAmount) || 0;
-      const d = (r.rechargeDate || '').slice(0, 10);
-      if (d && (!earliest || d < earliest)) earliest = d;
-    }
-    if (earliest && totalTaka > 0) {
-      const bal = Number(balance) || 0;
-      const consumedTaka = Math.max(0, totalTaka - bal);
-      const sd = new Date(earliest), ed = new Date();
-      const daysDiff = Math.max(1, Math.round((ed - sd) / 864e5));
-      const dailyT = consumedTaka / daysDiff;
-      // Sum daily consumption since the last month reset
-      const dailyDays = normalizeDaily(daily || []);
-      let totalUnit = 0;
-      let totalTaka = 0;
-      const now = new Date();
-      const currentMonth = now.getMonth();
-      const currentYear = now.getFullYear();
-      
-      for (const d of dailyDays) {
-        const date = new Date(d.d);
-        if (date.getMonth() === currentMonth && date.getFullYear() === currentYear) {
-            totalUnit += d.unit;
-            totalTaka += d.taka;
-        }
-      }
-      const thisMonth = { taka: totalTaka, unit: totalUnit };
-      return renderTotalUseCard(thisMonth, lastMonth);
+  
+  // Use daily data for accurate month-to-date calculation
+  const dailyDays = normalizeDaily(m.dailyData || []);
+  let totalUnit = 0;
+  let totalTaka = 0;
+  const now = new Date();
+  const currentMonth = now.getMonth();
+  const currentYear = now.getFullYear();
+  
+  for (const d of dailyDays) {
+    const date = new Date(d.d);
+    if (date.getMonth() === currentMonth && date.getFullYear() === currentYear) {
+      totalUnit += d.unit;
+      totalTaka += d.taka;
     }
   }
-  const thisMonth = nm[nm.length - 1] || { taka: 0, unit: 0 };
+
+  const thisMonth = (totalUnit > 0 || totalTaka > 0) ? { taka: totalTaka, unit: totalUnit } : (nm[nm.length - 1] || { taka: 0, unit: 0 });
   return renderTotalUseCard(thisMonth, lastMonth);
 }
 function renderTotalUseCard(thisMonth, lastMonth) {
@@ -2406,7 +2389,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.51'} (build ${'898'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.52'} (build ${'901'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
