@@ -549,7 +549,9 @@ function descoUnwrap(r) {
   return r;
 }
 function descoDailyAdapter(r) {
-  const d = descoUnwrap(r);
+  let d = descoUnwrap(r);
+  /* v2 wraps the rows: {accountId, period, days:[…]} — unwrap like monthly. */
+  if (d && !Array.isArray(d) && Array.isArray(d.days)) d = d.days;
   if (!Array.isArray(d)) return null;
   /* v2 reports per-day deltas (dailyConsumedUnit); flag them so normalizeDaily
      does not mistake a monotonically rising series for cumulative readings. */
@@ -1689,10 +1691,12 @@ function renderHistory(hist) {
           const tokens = (r.chargeItems || []).map(c => c.tokenNo || c.token || '').filter(Boolean).join(', ');
           const tokenDisplay = tokens || r.tokenNo || r.token || r.orderID || '';
           const chFind = (re) => { const c = (r.chargeItems || []).find(c => re.test(c.chargeItemName || c.name || '')); return c ? Number(c.chargeAmount) : null; };
-          const rent = chFind(/rent/i);
-          const dem = chFind(/demand/i);
-          const vatV = (r.VAT !== undefined && r.VAT !== null && r.VAT !== '') ? Number(r.VAT) : chFind(/vat/i);
-          const reb = (r.rebate !== undefined && r.rebate !== null && r.rebate !== '') ? Number(r.rebate) : null;
+          const flat = (v) => (v !== undefined && v !== null && v !== '') ? Number(v) : null;
+          /* v2 rows carry flat meterRent/demandCharge/vat keys; chargeItems is the legacy fallback. */
+          const rent = flat(r.meterRent) ?? chFind(/rent/i);
+          const dem = flat(r.demandCharge) ?? chFind(/demand/i);
+          const vatV = flat(r.vat) ?? flat(r.VAT) ?? chFind(/vat/i);
+          const reb = flat(r.rebate);
           const money = v => (v === null || v === undefined || isNaN(v)) ? '–' : fmtBdt(v);
           const st = r.orderStatus || r.status || r.rechargeStatus || '';
           const stLow = String(st).toLowerCase();
@@ -2121,7 +2125,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.35'} (build ${'850'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.36'} (build ${'853'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
