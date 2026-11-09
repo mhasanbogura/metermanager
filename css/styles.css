@@ -10,6 +10,7 @@
   --danger: #d32f2f;
   --success: #1e8e3e;
   --border: #dfe4ec;
+  --card-border: #c7d0de;
   --shadow: 0 1px 3px rgba(20, 24, 31, .08), 0 4px 14px rgba(20, 24, 31, .06);
   --shadow-lg: 0 8px 30px rgba(20, 24, 31, .18);
   --radius: 14px;
@@ -24,6 +25,7 @@
   --primary: #3b7bdd;
   --primary-2: #5c93e8;
   --border: #2c3547;
+  --card-border: #4a5878;
   --shadow: 0 1px 3px rgba(0,0,0,.4), 0 4px 14px rgba(0,0,0,.35);
   --shadow-lg: 0 8px 30px rgba(0,0,0,.5);
 }
@@ -36,6 +38,7 @@
   --primary: #3b7bdd;
   --primary-2: #5c93e8;
   --border: #1a1a1a;
+  --card-border: #3f3f3f;
   --shadow: 0 1px 3px rgba(0,0,0,.6), 0 4px 14px rgba(0,0,0,.5);
   --shadow-lg: 0 8px 30px rgba(0,0,0,.7);
 }
@@ -126,7 +129,7 @@ input, select { font-family: inherit; }
 
 /* ---------- cards ---------- */
 .card {
-  background: var(--surface); border: 1px solid var(--border);
+  background: var(--surface); border: 1.5px solid var(--card-border);
   border-radius: var(--radius); padding: 16px;
   box-shadow: var(--shadow);
 }
@@ -170,7 +173,7 @@ input[type="text"].wide { width: 100%; min-width: 0; margin-top: 8px; }
 .meter-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
 @media (max-width: 480px) { .meter-grid { grid-template-columns: 1fr; } }
 .meter-card {
-  position: relative; background: var(--surface); border: 1px solid var(--border);
+  position: relative; background: var(--surface); border: 1.5px solid var(--card-border);
   border-radius: var(--radius); padding: 15px; box-shadow: var(--shadow);
   cursor: pointer; transition: transform .12s, box-shadow .2s; text-align: left; color: var(--text);
   display: flex; flex-direction: column; gap: 8px;
@@ -212,7 +215,7 @@ input[type="text"].wide { width: 100%; min-width: 0; margin-top: 8px; }
 /* ---------- meter detail ---------- */
 .balance-hero {
   background: var(--surface);
-  color: var(--text); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px 18px;
+  color: var(--text); border: 1.5px solid var(--card-border); border-radius: var(--radius); padding: 22px 18px;
   display: flex; flex-direction: column; gap: 6px; box-shadow: var(--shadow);
 }
 .balance-hero .bh-label { font-size: 12.5px; color: var(--text-2); display: flex; justify-content: space-between; }
@@ -353,7 +356,7 @@ table.list.hist tr:last-child td { border-bottom: 1px solid var(--border); }
 }
 .brand-sub { font-size: 10px; color: var(--text-2); margin-top: -2px; }
 .card {
-  background: var(--surface-2); border: 1px solid var(--border); border-radius: 16px;
+  background: var(--surface-2); border: 1.5px solid var(--card-border); border-radius: 16px;
   padding: 16px; margin-bottom: 14px;
 }
 .card h3 { font-size: 15px; font-weight: 700; margin: 0 0 12px; text-align: center; color: var(--primary); }
