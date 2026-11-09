@@ -2383,7 +2383,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.63'} (build ${'934'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.64'} (build ${'937'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
@@ -2654,12 +2654,12 @@ function showForcedUpdatePopup(info) {
         btn.style.backgroundColor = '#2563eb';
         btn.style.color = '#ffffff';
         btn.style.border = 'none';
-        btn.textContent = 'Downloading... 0%';
+        btn.textContent = 'Downloading...';
         
         // Start download and pass a progress callback
         startUpdateDownloadWithProgress(info, (percent) => {
           if (percent < 100) {
-            btn.textContent = 'Downloading... ' + percent + '%';
+            btn.textContent = 'Downloading...';
           } else {
             btn.textContent = 'Installing...';
           }
