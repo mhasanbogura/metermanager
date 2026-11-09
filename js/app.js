@@ -720,7 +720,7 @@ async function refreshMeterOnce(meter) {
       let balErr = null;
       const [balR, dailyR] = await Promise.all([
         apiGet(`${descoApiBase()}/accounts/${meter.accountId}/balance`).catch(e => { balErr = e; return null; }),
-        apiGet(`${descoApiBase()}/accounts/${meter.accountId}/usage/daily`, { dateFrom: todayStr(13), dateTo: todayStr(0) }).catch(() => null)
+        apiGet(`${descoApiBase()}/accounts/${meter.accountId}/usage/daily`, { dateFrom: todayStr(29), dateTo: todayStr(0) }).catch(() => null)
       ]);
       const daily = descoDailyAdapter(dailyR);
       if (daily) {
@@ -1536,7 +1536,7 @@ async function loadDetailData(m) {
   if (m.accountId) {
     const base = `${descoApiBase()}/accounts/${m.accountId}`;
     const [dR, mR, hR] = await Promise.all([
-      apiGet(`${base}/usage/daily`, { dateFrom: todayStr(14), dateTo: todayStr(1) }).catch(() => null),
+      apiGet(`${base}/usage/daily`, { dateFrom: todayStr(29), dateTo: todayStr(0) }).catch(() => null),
       apiGet(`${base}/usage/monthly`, { monthFrom: monthStr(11), monthTo: monthStr(0) }).catch(() => null),
       apiGet(`${base}/transactions`, { dateFrom: todayStr(364), dateTo: todayStr(0) }).catch(() => null)
     ]);
@@ -1647,7 +1647,7 @@ function normalizeDaily(daily) {
     for (const r of rows) byDate[r.d] = { unit: r.unit, taka: r.taka };
   }
   const days = [];
-  for (let i = 14; i >= 0; i--) {
+  for (let i = 29; i >= 0; i--) {
     const d = todayStr(i);
     /* Days the portal has no reading for stay gaps (drawn as a dot), not 0. */
     days.push({ d, unit: byDate[d]?.unit || 0, taka: byDate[d]?.taka || 0, gap: !byDate[d] });
@@ -2389,7 +2389,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.52'} (build ${'901'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.53'} (build ${'904'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
