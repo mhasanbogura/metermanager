@@ -12,7 +12,7 @@ const I18N = {
     'home.empty.title': 'No meter added yet', 'home.empty.text': 'Enter your 8-digit DESCO account number, 12-digit meter number, or NESCO consumer number to see live balance, consumption and recharge history.',
     'home.hero': 'Check your DESCO / NESCO prepaid electricity meter: live balance, daily & monthly usage, average daily cost and recharge history — all in a web.',
     'hero.live': 'Live balance & meter info', 'hero.cost': 'Average Daily Cost', 'hero.history': 'Total use of this month & last month', 'hero.consumption': 'Daily & monthly consumption', 'hero.recharge': 'Recharge history',
-    'home.reorder': 'Drag to reorder', 'home.avg_day': 'Avg. Daily Cost (7 Days): {v}',
+    'home.reorder': 'Drag to reorder', 'home.avg_day': 'Avg. Daily Cost: {v}',
     'home.desc': 'Your prepaid meter balances and usage, pulled live from DESCO and NESCO Server.',
     'home.last_updated': 'Updated {t}', 'home.updated_never': 'Not updated yet', 'home.low': 'Low balance',
     'home.refreshing': 'Updating…', 'home.stale': 'Last synced', 'home.pull_refresh': 'Pull to refresh', 'home.max': 'Maximum 5 meters allowed.',
@@ -1687,7 +1687,9 @@ function renderUsageCard(wrap, m, daily, monthly) {
       };
     })
   };
-  let tab = state.settings.usageTab === 'monthly' ? 'monthly' : 'daily';
+  /* NESCO's panel only exposes monthly readings, so it defaults to Monthly;
+     DESCO defaults to Daily. A global user choice overrides both. */
+  let tab = state.settings.usageTab === 'monthly' ? 'monthly' : (m.provider === 'nesco' ? 'monthly' : 'daily');
   if (tab === 'monthly' && !hasM && hasD) tab = 'daily';
   if (tab === 'daily' && !hasD && hasM) tab = 'monthly';
   _usage = { items, tab, metric: state.settings.usageMetric === 'taka' ? 'taka' : 'unit', sel: null };
@@ -2388,7 +2390,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.40'} (build ${'865'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.41'} (build ${'868'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
@@ -3217,3 +3219,5 @@ document.addEventListener('DOMContentLoaded', boot);
   }, { passive: true });
   home.addEventListener('touchend', () => { if (pulling) { pulling = false; hide(); } }, { passive: true });
 })();
+
+
