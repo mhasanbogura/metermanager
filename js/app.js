@@ -1700,7 +1700,7 @@ function renderUsageCard(wrap, m, daily, monthly) {
   wrap.innerHTML = `
     <section class="card">
       <div class="usage-head">
-        <span class="usage-acct" style="color:var(--text-2)">${esc(t('detail.usage'))}</span>
+        <span class="usage-acct" style="color:var(--primary)">${esc(t('detail.usage'))}</span>
         <div class="tabs">
           <button type="button" class="tab${tab === 'daily' ? ' active' : ''}" data-utab="daily">${esc(t('detail.daily_short'))}</button>
           <button type="button" class="tab${tab === 'monthly' ? ' active' : ''}" data-utab="monthly">${esc(t('detail.monthly_short'))}</button>
@@ -1714,7 +1714,6 @@ function renderUsageCard(wrap, m, daily, monthly) {
         <div class="chart-wrap usage-chart"><canvas id="chUsage"></canvas><div class="chart-tip" id="usageTip" hidden></div></div>
         <div class="chart-legend legend-row" id="usageLegend"></div>
       </div>
-      <div id="usageTotals" style="margin-top:12px;font-size:13px;color:var(--text-2);text-align:center"></div>
       <p class="muted" id="usageEmpty" style="display:none">${esc(t('detail.consumption_empty'))}</p>
     </section>
   `;
@@ -1775,11 +1774,6 @@ function updateUsageView() {
     if (items.some(i => i.gap)) parts.push('<span><span class="dot round"></span>' + esc(t('detail.no_reading')) + '</span>');
     leg.innerHTML = parts.join('');
     leg.style.display = parts.length ? '' : 'none';
-  }
-  const totals = $('#usageTotals');
-  if (totals) {
-    const sum = items.reduce((acc, i) => ({ unit: acc.unit + (i.gap ? 0 : i.unit), taka: acc.taka + (i.gap ? 0 : i.taka) }), { unit: 0, taka: 0 });
-    totals.innerHTML = `${esc(t('detail.total'))}: <b>${fmtUnits(sum.unit)}</b> &nbsp; · &nbsp; <b>${fmtBdt(sum.taka)}</b>`;
   }
   drawUsageChart();
 }
@@ -2389,7 +2383,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.54'} (build ${'907'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.55'} (build ${'910'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
