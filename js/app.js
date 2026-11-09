@@ -1319,6 +1319,9 @@ async function renderMeterDetail() {
   c.innerHTML = `
     <div class="page-head">
       <h2 style="font-size:19px;flex:1">${esc(m.nickname || m.info?.customerName || m.info?.name || m.accountNo || m.meterNo || m.consumerNo)}</h2>
+      <button class="icon-btn" style="width:34px;height:34px" onclick="window.ppRefresh('${m.id}')" title="${esc(t('btn.refresh'))}"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M17.65 6.35A7.958 7.958 0 0012 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0112 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg></button>
+      <button class="icon-btn" style="width:34px;height:34px" onclick="window.ppEditMeter('${m.id}')" title="${esc(t('btn.edit'))}"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></button>
+      <button class="icon-btn" style="width:34px;height:34px" onclick="window.ppRemove('${m.id}')" title="${esc(t('btn.remove'))}"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>
     </div>
     <div class="balance-hero">
       <div class="bh-label"><span>${esc(t('detail.balance'))}</span><span><b style="font-size:11px;letter-spacing:.6px;text-transform:uppercase;color:var(--primary-2)">${m.provider === 'nesco' ? 'NESCO' : 'DESCO'}</b> · ${esc(m.info?.accountNo || m.accountNo || m.consumerNo || '')}</span></div>
@@ -1904,17 +1907,6 @@ function renderHome() {
      return `<div class="meter-card" draggable="true" data-id="${m.id}" onclick="window.ppOpen('${m.id}')">
        <div class="mc-top">
          <span class="mc-provider">${m.provider === 'nesco' ? 'NESCO' : 'DESCO' + (m.sys === 'unified' ? ' · Unified' : '')}</span>
-         <div class="mc-actions">
-           <button class="mc-action mc-action-danger" title="${esc(t('btn.remove'))}" onclick="event.stopPropagation();window.ppRemove('${m.id}')">
-             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
-           </button>
-           <button class="mc-action" title="${esc(t('btn.edit'))}" onclick="event.stopPropagation();window.ppEditMeter('${m.id}')">
-             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
-           </button>
-           <button class="mc-action" title="${esc(t('btn.refresh'))}" onclick="event.stopPropagation();window.ppRefresh('${m.id}')">
-             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.65 6.35A7.958 7.958 0 0012 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0112 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
-           </button>
-         </div>
        </div>
        <div class="mc-number">${esc(m.nickname || m.info?.customerName || m.info?.name || '')}${(m.nickname || m.info?.customerName || m.info?.name) ? '<br>' : ''}${esc(m.accountNo || m.meterNo || m.consumerNo)}</div>
         <div class="mc-balance ${b !== null && low ? 'low' : ''}" style="${b !== null && low ? 'color:#ff6b6b' : ''}">${(state.updatingForUpdate || m.loading || (m.err && b === null)) ? '--' : (b === null ? '––' : fmtBdt(b))}${low ? ' <span style="font-size:12px;font-weight:700;color:#ff6b6b">' + esc(t('home.low')) + '</span>' : ''}</div>
@@ -2392,7 +2384,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.43'} (build ${'874'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.44'} (build ${'877'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {

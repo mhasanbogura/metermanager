@@ -190,6 +190,8 @@ public class MainActivity extends Activity {
                     view.evaluateJavascript("NescoBridge.saveDescoCookies();", null);
                     // "Add account" flow: a fresh DESCO_SESSION means login done.
                     if (addingDescoAccount) maybeFinishDescoAdd(view);
+                } else {
+                    view.evaluateJavascript("var b=document.getElementById('mm-back-btn');if(b)b.remove();", null);
                 }
                 injectOverrides();
                 if (url != null && url.startsWith(WEB_URL)) {
@@ -259,7 +261,7 @@ public class MainActivity extends Activity {
             "  if(window.__mm_injected) return;" +
             "  window.__mm_injected=true;" +
             "  var backBtn=document.createElement('div');" +
-            "  backBtn.innerHTML='<div style=\"position:fixed;top:10px;left:10px;z-index:9999;background:#0b3d91;color:white;padding:10px 15px;border-radius:20px;font-weight:600;box-shadow:0 4px 6px rgba(0,0,0,0.3);cursor:pointer;font-size:14px\">← Back to Meter Manager</div>';" +
+            "  backBtn.innerHTML='<div id=\"mm-back-btn\" style=\"position:fixed;top:10px;left:10px;z-index:9999;background:#0b3d91;color:white;padding:10px 15px;border-radius:20px;font-weight:600;box-shadow:0 4px 6px rgba(0,0,0,0.3);cursor:pointer;font-size:14px\">← Back to Meter Manager</div>';" +
             "  backBtn.onclick=function(){ NescoBridge.closeDescoLogin(); };" +
             "  document.body.appendChild(backBtn.firstChild);" +
             "  var origFetch=window.fetch;" +
@@ -1318,7 +1320,10 @@ public class MainActivity extends Activity {
             Log.i(TAG, "desco add probe: HTTP " + code + " authed=" + authed);
             if (!authed || gen != descoFlowGen || !addingDescoAccount) {
                 // Not signed in yet (or the flow was cancelled) — keep waiting.
-                mainHandler.post(() -> descoValidating = false);
+                mainHandler.post(() -> {
+                descoValidating = false;
+                webView.evaluateJavascript("var b=document.getElementById('mm-back-btn');if(b)b.remove();", null);
+            });
                 return;
             }
             // Signed in. Best-effort label: the dashboard shows the 8-digit
