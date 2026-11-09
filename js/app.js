@@ -2129,7 +2129,7 @@ function drawUsageChart() {
     const y = yFor(v);
     const bh = Math.max(0, y0 - y);
     const x = cx(i) - bw / 2;
-    ctx.fillStyle = it.boundary ? neutral : series;
+    ctx.fillStyle = series;
     if (bh < 2) {
       ctx.fillRect(x, y0 - 2, bw, 2);
     } else {
@@ -2383,7 +2383,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.64'} (build ${'937'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.65'} (build ${'940'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
