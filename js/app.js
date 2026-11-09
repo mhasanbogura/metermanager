@@ -42,6 +42,10 @@ const I18N = {
     'detail.date': 'Date', 'detail.order': 'Order', 'detail.token': 'Token', 'detail.kwh': 'kWh', 'detail.bdt': '৳',
     'detail.chart_unit': 'kWh', 'detail.chart_taka': '৳',
     'detail.consumption_empty': 'No consumption data for this period.',
+    'detail.daily_short': 'Daily', 'detail.monthly_short': 'Monthly',
+    'detail.metric_energy': 'Energy (kWh)', 'detail.metric_cost': 'Cost (Tk)',
+    'detail.month_reset': 'Month reset', 'detail.no_reading': 'No reading',
+    'detail.cost': 'Cost', 'detail.cost_mtd': 'Cost (month-to-date)', 'detail.new_month': 'new month',
     'detail.avg_daily': 'Avg. daily cost: {v}',
     'detail.mobile': 'Mobile', 'detail.address': 'Address', 'detail.office': 'Office',
     'detail.meter_type': 'Meter type', 'detail.father': 'Father/Husband', 'detail.feed': 'Feeder',
@@ -155,6 +159,10 @@ const I18N = {
     'detail.date': 'তারিখ', 'detail.order': 'অর্ডার', 'detail.token': 'টোকেন', 'detail.kwh': 'কিলোওয়াট', 'detail.bdt': '৳',
     'detail.chart_unit': 'কিলোওয়াট', 'detail.chart_taka': '৳',
     'detail.consumption_empty': 'এই সময়ের কোনো ব্যবহারের তথ্য নেই।',
+    'detail.daily_short': 'দৈনিক', 'detail.monthly_short': 'মাসিক',
+    'detail.metric_energy': 'শক্তি (kWh)', 'detail.metric_cost': 'খরচ (টাকা)',
+    'detail.month_reset': 'নতুন মাস শুরু', 'detail.no_reading': 'কোনো রিডিং নেই',
+    'detail.cost': 'খরচ', 'detail.cost_mtd': 'খরচ (মাসের শুরু থেকে)', 'detail.new_month': 'নতুন মাস',
     'detail.avg_daily': 'গড় দৈনিক খরচ: {v}',
     'detail.mobile': 'মোবাইল', 'detail.address': 'ঠিকানা', 'detail.office': 'অফিস',
     'detail.meter_type': 'মিটারের ধরন', 'detail.father': 'বাবা/স্বামীর নাম', 'detail.feed': 'ফিডার',
@@ -258,10 +266,16 @@ function loadState() {
   try {
     state.settings = JSON.parse(localStorage.getItem(LS_SETTINGS)) || {};
   } catch { state.settings = {}; }
+  const hadUsageMetric = state.settings.usageMetric;
   state.settings = Object.assign({
     lang: 'en', theme: 'system', alerts: false, alertThreshold: 200,
-    alertFreq: 60, autoRefresh: true, autoFreq: 600
+    alertFreq: 60, autoRefresh: true, autoFreq: 600,
+    usageTab: 'daily', usageMetric: 'unit'
   }, state.settings);
+  /* First visit honors the portal's ?metric=taka deep link as the default. */
+  if (!hadUsageMetric) {
+    try { if (new URLSearchParams(location.search).get('metric') === 'taka') state.settings.usageMetric = 'taka'; } catch (e) { /* keep default */ }
+  }
 }
 function saveMeters() { localStorage.setItem(LS_METERS, JSON.stringify(state.meters)); if (currentUser) saveToCloud(); }
 function saveSettings() { localStorage.setItem(LS_SETTINGS, JSON.stringify(state.settings)); if (currentUser) saveSettingsToCloud(); }
@@ -1539,23 +1553,7 @@ async function loadDetailData(m) {
   if (hist.length) m.histData = hist;
   saveMeters();
   const dWrap = $('#consumptionWrap'); if (!dWrap) return;
-  dWrap.innerHTML = `
-    ${renderDailyChart(m, daily)}
-    ${renderMonthlyChart(m, monthly)}
-  `;
-  const dCanvas = $('#chDaily'), mCanvas = $('#chMonthly');
-  if (dCanvas) {
-    const chartDays = normalizeDaily(daily);
-    drawChart(dCanvas, chartDays.map(d => { const dt = new Date(d.d); return dt.toLocaleDateString(langs === I18N.bn ? 'bn-BD' : 'en-GB', { day: 'numeric', month: 'short' }); }),
-      [{ name: '৳', color: getCss('--primary'), values: chartDays.map(d => d.taka) },
-       { name: 'kWh', color: getCss('--accent'), values: chartDays.map(d => d.unit) }]);
-  }
-  if (mCanvas) {
-    const months = normalizeMonthly(monthly);
-    drawChart(mCanvas, months.map(x => new Date(x.m + '-01').toLocaleDateString(langs === I18N.bn ? 'bn-BD' : 'en-GB', { month: 'short', year: '2-digit' })),
-      [{ name: '৳', color: getCss('--primary'), values: months.map(x => x.taka) },
-       { name: 'kWh', color: getCss('--accent'), values: months.map(x => x.unit) }]);
-  }
+  renderUsageCard(dWrap, m, daily, monthly);
   const hWrap = $('#historyWrap'); if (!hWrap) return;
   hWrap.innerHTML = renderHistory(hist);
   const tWrap = $('#totalUseWrap');
@@ -1602,7 +1600,8 @@ function normalizeDaily(daily) {
   const days = [];
   for (let i = 14; i >= 0; i--) {
     const d = todayStr(i);
-    days.push({ d, unit: byDate[d]?.unit || 0, taka: byDate[d]?.taka || 0 });
+    /* Days the portal has no reading for stay gaps (drawn as a dot), not 0. */
+    days.push({ d, unit: byDate[d]?.unit || 0, taka: byDate[d]?.taka || 0, gap: !byDate[d] });
   }
   return days;
 }
@@ -1612,34 +1611,139 @@ function normalizeMonthly(monthly) {
   const out = [];
   for (let i = 11; i >= 0; i--) {
     const m = monthStr(i);
-    out.push({ m, unit: byMonth[m]?.unit || 0, taka: byMonth[m]?.taka || 0 });
+    out.push({ m, unit: byMonth[m]?.unit || 0, taka: byMonth[m]?.taka || 0, gap: !byMonth[m] });
   }
   return out;
 }
 
-function renderDailyChart(m, daily) {
-  const days = normalizeDaily(daily);
-  const has = days.some(d => d.unit > 0 || d.taka > 0);
-  const labels = days.map(d => { const dt = new Date(d.d); return dt.toLocaleDateString(langs === I18N.bn ? 'bn-BD' : 'en-GB', { day: 'numeric', month: 'short' }); });
-  return `<section class="card">
-    <h3>${esc(t('detail.daily'))}</h3>
-    ${has
-      ? `<div class="chart-wrap"><canvas id="chDaily"></canvas></div>
-         <div class="chart-legend"><span><span class="dot" style="background:var(--primary)"></span>${esc(t('detail.chart_taka'))}</span><span><span class="dot" style="background:var(--accent)"></span>${esc(t('detail.chart_unit'))}</span></div>`
-      : `<p class="muted">${esc(t('detail.consumption_empty'))}</p>`}
-  </section>`;
+/* ---- combined portal-style Usage card: account header + Daily/Monthly and
+   Energy/Cost pill toggles + one bar chart with tap tooltip ---- */
+let _usage = null;
+function renderUsageCard(wrap, m, daily, monthly) {
+  const days = normalizeDaily(daily), months = normalizeMonthly(monthly);
+  const hasD = days.some(d => !d.gap && (d.unit > 0 || d.taka > 0));
+  const hasM = months.some(x => !x.gap && (x.unit > 0 || x.taka > 0));
+  const loc = langs === I18N.bn ? 'bn-BD' : 'en-GB';
+  const items = {
+    daily: days.map(d => {
+      const dt = new Date(d.d);
+      return {
+        label: dt.toLocaleDateString(loc, { day: 'numeric' }),
+        full: dt.toLocaleDateString(loc, { day: 'numeric', month: 'short', year: 'numeric' }),
+        unit: d.unit, taka: d.taka, gap: !!d.gap, boundary: d.d.slice(8, 10) === '01'
+      };
+    }),
+    monthly: months.map(x => {
+      const dt = new Date(x.m + '-01');
+      return {
+        label: dt.toLocaleDateString(loc, { month: 'short', year: '2-digit' }),
+        full: dt.toLocaleDateString(loc, { month: 'long', year: 'numeric' }),
+        unit: x.unit, taka: x.taka, gap: !!x.gap, boundary: false
+      };
+    })
+  };
+  let tab = state.settings.usageTab === 'monthly' ? 'monthly' : 'daily';
+  if (tab === 'monthly' && !hasM && hasD) tab = 'daily';
+  if (tab === 'daily' && !hasD && hasM) tab = 'monthly';
+  const acct = m.info?.accountNo || m.accountNo || m.consumerNo || '';
+  _usage = { items, tab, metric: state.settings.usageMetric === 'taka' ? 'taka' : 'unit', sel: null };
+  wrap.innerHTML = `
+    <section class="card">
+      <div class="usage-head">
+        <span class="usage-acct">${esc(acct ? acct + ' · DESCO' : 'DESCO')}</span>
+        <div class="tabs">
+          <button type="button" class="tab${tab === 'daily' ? ' active' : ''}" data-utab="daily">${esc(t('detail.daily_short'))}</button>
+          <button type="button" class="tab${tab === 'monthly' ? ' active' : ''}" data-utab="monthly">${esc(t('detail.monthly_short'))}</button>
+        </div>
+      </div>
+      <div class="tabs usage-metric" id="usageMetricRow">
+        <button type="button" class="tab${_usage.metric === 'unit' ? ' active' : ''}" data-umetric="unit">${esc(t('detail.metric_energy'))}</button>
+        <button type="button" class="tab${_usage.metric === 'taka' ? ' active' : ''}" data-umetric="taka">${esc(t('detail.metric_cost'))}</button>
+      </div>
+      <div id="usagePlot">
+        <div class="chart-wrap usage-chart"><canvas id="chUsage"></canvas><div class="chart-tip" id="usageTip" hidden></div></div>
+        <div class="chart-legend legend-row" id="usageLegend"></div>
+      </div>
+      <p class="muted" id="usageEmpty" style="display:none">${esc(t('detail.consumption_empty'))}</p>
+    </section>
+  `;
+  wrap.querySelectorAll('[data-utab]').forEach(b => {
+    b.onclick = () => {
+      if (_usage.tab === b.dataset.utab) return;
+      _usage.tab = b.dataset.utab;
+      state.settings.usageTab = _usage.tab; saveSettings();
+      wrap.querySelectorAll('[data-utab]').forEach(x => x.classList.toggle('active', x.dataset.utab === _usage.tab));
+      updateUsageView();
+    };
+  });
+  wrap.querySelectorAll('[data-umetric]').forEach(b => {
+    b.onclick = () => {
+      if (_usage.metric === b.dataset.umetric) return;
+      _usage.metric = b.dataset.umetric;
+      state.settings.usageMetric = _usage.metric; saveSettings();
+      wrap.querySelectorAll('[data-umetric]').forEach(x => x.classList.toggle('active', x.dataset.umetric === _usage.metric));
+      updateUsageView();
+    };
+  });
+  const canvas = $('#chUsage');
+  if (canvas) {
+    let dx0 = 0, dy0 = 0;
+    canvas.addEventListener('pointerdown', e => { dx0 = e.clientX; dy0 = e.clientY; });
+    canvas.addEventListener('pointerup', e => {
+      const u = _usage; if (!u || !canvas._geom) return;
+      /* a pan/scroll gesture is not a tap — ignore it */
+      if (Math.abs(e.clientX - dx0) > 12 || Math.abs(e.clientY - dy0) > 12) return;
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      let i = Math.floor((x - canvas._geom.padL) / canvas._geom.slot);
+      if (x < canvas._geom.padL || i < 0 || i >= canvas._geom.n) i = -1;
+      u.sel = (i === -1 || u.sel === i) ? null : i;
+      drawUsageChart();
+      if (u.sel != null) showUsageTip(); else hideUsageTip();
+    });
+  }
+  updateUsageView();
 }
-function renderMonthlyChart(m, monthly) {
-  const months = normalizeMonthly(monthly);
-  const has = months.some(x => x.unit > 0 || x.taka > 0);
-  const labels = months.map(x => { const d = new Date(x.m + '-01'); return d.toLocaleDateString(langs === I18N.bn ? 'bn-BD' : 'en-GB', { month: 'short', year: '2-digit' }); });
-  return `<section class="card">
-    <h3>${esc(t('detail.monthly'))}</h3>
-    ${has
-      ? `<div class="chart-wrap"><canvas id="chMonthly"></canvas></div>
-         <div class="chart-legend"><span><span class="dot" style="background:var(--primary)"></span>${esc(t('detail.chart_taka'))}</span><span><span class="dot" style="background:var(--accent)"></span>${esc(t('detail.chart_unit'))}</span></div>`
-      : `<p class="muted">${esc(t('detail.consumption_empty'))}</p>`}
-  </section>`;
+function updateUsageView() {
+  const u = _usage; if (!u) return;
+  const items = u.items[u.tab];
+  const has = items.some(i => !i.gap && (i.unit > 0 || i.taka > 0));
+  const plot = $('#usagePlot'), pills = $('#usageMetricRow'), empty = $('#usageEmpty');
+  if (plot) plot.style.display = has ? '' : 'none';
+  if (pills) pills.style.display = has ? '' : 'none';
+  if (empty) empty.style.display = has ? 'none' : '';
+  u.sel = null; hideUsageTip();
+  if (!has) return;
+  const leg = $('#usageLegend');
+  if (leg) {
+    const parts = [];
+    if (u.tab === 'daily' && items.some(i => i.boundary)) parts.push('<span><span class="dash-swatch"></span>' + esc(t('detail.month_reset')) + '</span>');
+    if (items.some(i => i.gap)) parts.push('<span><span class="dot round"></span>' + esc(t('detail.no_reading')) + '</span>');
+    leg.innerHTML = parts.join('');
+    leg.style.display = parts.length ? '' : 'none';
+  }
+  drawUsageChart();
+}
+function hideUsageTip() { const tip = $('#usageTip'); if (tip) tip.hidden = true; }
+function showUsageTip() {
+  const u = _usage;
+  const tip = $('#usageTip'), canvas = $('#chUsage');
+  if (!u || u.sel == null || !tip || !canvas || !canvas._geom) return;
+  const it = u.items[u.tab][u.sel];
+  const g = canvas._geom;
+  tip.innerHTML = '<div class="t-month">' + esc(it.full + (it.boundary ? ' · ' + t('detail.new_month') : '')) + '</div>'
+    + '<div class="t-row"><span>' + esc(t('detail.energy')) + '</span><b>' + esc(it.gap ? '–' : fmtUnits(it.unit)) + '</b></div>'
+    + '<div class="t-row"><span>' + esc(it.boundary && u.tab === 'daily' ? t('detail.cost_mtd') : t('detail.cost')) + '</span><b>' + esc(it.gap ? '–' : fmtBdt(it.taka)) + '</b></div>';
+  tip.hidden = false;
+  const v = Number(u.metric === 'taka' ? it.taka : it.unit) || 0;
+  const barTop = it.gap ? g.y0 - 4 : g.yFor(v);
+  const tw = tip.offsetWidth, th = tip.offsetHeight;
+  let left = g.cx(u.sel);
+  left = Math.min(Math.max(left, tw / 2 + 4), g.w - tw / 2 - 4);
+  let top = barTop - 10 - th;
+  if (top < 0) top = 0;
+  tip.style.left = Math.round(left) + 'px';
+  tip.style.top = Math.round(top) + 'px';
 }
 function renderTotalUse(monthly, hist, balance) {
   const nm = normalizeMonthly(monthly);
@@ -1859,53 +1963,154 @@ window.ppShowAdd = showAddMeter;
 
 /* ================= charts ================= */
 function getCss(prop) { return getComputedStyle(document.body).getPropertyValue(prop).trim() || '#0b3d91'; }
-function drawChart(canvas, labels, series) {
+/* ---- portal-style bar chart for the combined Usage card ---- */
+function niceStep(raw) {
+  if (!(raw > 0)) return 1;
+  const p = Math.pow(10, Math.floor(Math.log10(raw)));
+  const n = raw / p;
+  return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10) * p;
+}
+function roundTopRect(ctx, x, y, w, h, r) {
+  r = Math.max(0, Math.min(r, w / 2, h));
+  ctx.beginPath();
+  ctx.moveTo(x, y + h);
+  ctx.lineTo(x, y + r);
+  ctx.arcTo(x, y, x + r, y, r);
+  ctx.lineTo(x + w - r, y);
+  ctx.arcTo(x + w, y, x + w, y + r, r);
+  ctx.lineTo(x + w, y + h);
+  ctx.closePath();
+}
+function drawUsageChart() {
+  const u = _usage;
+  const canvas = $('#chUsage');
+  if (!u || !canvas) return;
+  const items = u.items[u.tab];
+  const vals = items.map(i => Number(u.metric === 'taka' ? i.taka : i.unit) || 0);
+  const maxV = Math.max(1, ...vals);
+  const gStep = niceStep(maxV / 4);
+  const top = gStep * 4;
   const dpr = window.devicePixelRatio || 1;
   const w = Math.max(canvas.clientWidth, 300);
-  const h = 190;
-  canvas.width = w * dpr; canvas.height = h * dpr;
+  const h = 260;
+  canvas.width = Math.round(w * dpr);
+  canvas.height = Math.round(h * dpr);
   canvas.style.height = h + 'px';
   const ctx = canvas.getContext('2d');
-  ctx.scale(dpr, dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, w, h);
   const css = getComputedStyle(document.body);
-  const txt = css.getPropertyValue('--text').trim() || '#14181f';
   const txt2 = css.getPropertyValue('--text-2').trim() || '#5b6472';
-  const line = css.getPropertyValue('--border').trim() || '#dfe4ec';
-  const padL = 44, padR = 12, padT = 14, padB = 30;
-  const maxV = Math.max(1, ...series.flatMap(s => s.values.map(v => Number(v) || 0)));
-  const minV = 0;
+  const grid = css.getPropertyValue('--chart-grid').trim() || css.getPropertyValue('--border').trim() || '#e6e9ef';
+  const series = css.getPropertyValue('--series-1').trim() || '#2a78d6';
+  const neutral = css.getPropertyValue('--n-400').trim() || '#98a1ac';
+  const padL = 52, padR = 10, padT = 76, padB = 30;
   const iw = w - padL - padR, ih = h - padT - padB;
-  const yFor = v => padT + ih - ((v - minV) / (maxV - minV)) * ih;
+  const n = items.length;
+  const slot = iw / Math.max(1, n);
+  const bw = Math.min(28, slot * 0.6);
+  const y0 = padT + ih;
+  const yFor = v => y0 - (Math.max(0, v) / top) * ih;
+  const cx = i => padL + slot * (i + 0.5);
+  canvas._geom = { padL, slot, n, w, y0, yFor, cx };
 
-  ctx.strokeStyle = line; ctx.fillStyle = txt2; ctx.font = '11px sans-serif'; ctx.textAlign = 'right';
-  ctx.beginPath();
+  /* y axis: gridlines + tick labels (৳-prefixed on the cost view) */
+  ctx.font = '10.5px sans-serif';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'alphabetic';
   for (let i = 0; i <= 4; i++) {
-    const v = minV + (maxV - minV) * i / 4;
+    const v = gStep * i;
     const y = yFor(v);
-    ctx.moveTo(padL, y); ctx.lineTo(w - padR, y);
-    ctx.fillText(fmtNum(v), padL - 6, y + 4);
-  }
-  ctx.stroke();
-
-  const n = labels.length;
-  const step = iw / n;
-  ctx.textAlign = 'center';
-  labels.forEach((l, i) => {
-    if (n > 20 && i % 3 !== 0) return;
+    ctx.strokeStyle = grid;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(padL, Math.round(y) + 0.5);
+    ctx.lineTo(w - padR, Math.round(y) + 0.5);
+    ctx.stroke();
     ctx.fillStyle = txt2;
-    ctx.fillText(l, padL + step * (i + 0.5), h - 10);
+    ctx.fillText(u.metric === 'taka' ? fmtBdt(v) : fmtNum(v), padL - 7, y + 3.5);
+  }
+
+  /* dashed "Month reset" divider on the daily view */
+  if (u.tab === 'daily') {
+    items.forEach((it, i) => {
+      if (!it.boundary || i === 0) return;
+      const x = Math.round(padL + slot * i) + 0.5;
+      ctx.save();
+      ctx.strokeStyle = neutral;
+      ctx.globalAlpha = 0.7;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      ctx.moveTo(x, padT - 16);
+      ctx.lineTo(x, y0);
+      ctx.stroke();
+      ctx.restore();
+      ctx.save();
+      ctx.font = '600 9.5px sans-serif';
+      ctx.fillStyle = neutral;
+      ctx.textAlign = 'left';
+      const lbl = t('detail.month_reset');
+      let lx = x + 5;
+      if (lx + ctx.measureText(lbl).width > w - padR) { ctx.textAlign = 'right'; lx = x - 5; }
+      ctx.fillText(lbl, lx, padT - 20);
+      ctx.restore();
+    });
+  }
+
+  /* rounded-top bars + value labels; missing readings become dots */
+  const labEvery = Math.max(1, Math.ceil((u.tab === 'daily' ? 36 : 48) / slot));
+  items.forEach((it, i) => {
+    ctx.globalAlpha = (u.sel != null && u.sel !== i) ? 0.38 : 1;
+    if (it.gap) {
+      ctx.fillStyle = neutral;
+      ctx.beginPath();
+      ctx.arc(cx(i), y0 - 4, 2.6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      return;
+    }
+    const v = vals[i];
+    const y = yFor(v);
+    const bh = Math.max(0, y0 - y);
+    const x = cx(i) - bw / 2;
+    ctx.fillStyle = it.boundary ? neutral : series;
+    if (bh < 2) {
+      ctx.fillRect(x, y0 - 2, bw, 2);
+    } else {
+      roundTopRect(ctx, x, y, bw, bh, 3);
+      ctx.fill();
+    }
+    if (v > 0 && i % labEvery === 0) {
+      ctx.fillStyle = txt2;
+      ctx.font = '600 10.5px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(u.metric === 'taka' ? fmtBdt(v) : fmtNum(v), cx(i), y - 7);
+    }
+    ctx.globalAlpha = 1;
   });
 
-  series.forEach(sr => {
-    ctx.strokeStyle = sr.color; ctx.lineWidth = 2; ctx.beginPath();
-    const pts = sr.values.map((v, i) => [padL + step * (i + 0.5), yFor(Number(v) || 0)]);
-    pts.forEach((p, i) => i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]));
-    ctx.stroke();
-    ctx.fillStyle = sr.color;
-    pts.forEach(p => { ctx.beginPath(); ctx.arc(p[0], p[1], 3, 0, Math.PI * 2); ctx.fill(); });
+  /* x axis: day numbers / month labels */
+  const xEvery = Math.max(1, Math.ceil((u.tab === 'daily' ? 15 : 34) / slot));
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = txt2;
+  ctx.font = '10.5px sans-serif';
+  ctx.textAlign = 'center';
+  items.forEach((it, i) => {
+    if (i % xEvery) return;
+    ctx.fillText(it.label, cx(i), h - 12);
   });
 }
+let _usageRT = 0;
+window.addEventListener('resize', () => {
+  clearTimeout(_usageRT);
+  _usageRT = setTimeout(() => {
+    if (!_usage || !$('#chUsage')) return;
+    _usage.sel = null;
+    hideUsageTip();
+    drawUsageChart();
+  }, 160);
+});
 
 /* ================= views / nav ================= */
 function showView(name) {
@@ -2125,7 +2330,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.36'} (build ${'853'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.37'} (build ${'856'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
