@@ -258,6 +258,10 @@ public class MainActivity extends Activity {
             "(function(){" +
             "  if(window.__mm_injected) return;" +
             "  window.__mm_injected=true;" +
+            "  var backBtn=document.createElement('div');" +
+            "  backBtn.innerHTML='<div style=\"position:fixed;top:10px;left:10px;z-index:9999;background:#0b3d91;color:white;padding:10px 15px;border-radius:20px;font-weight:600;box-shadow:0 4px 6px rgba(0,0,0,0.3);cursor:pointer;font-size:14px\">← Back to Meter Manager</div>';" +
+            "  backBtn.onclick=function(){ NescoBridge.closeDescoLogin(); };" +
+            "  document.body.appendChild(backBtn.firstChild);" +
             "  var origFetch=window.fetch;" +
             "  window.fetch=function(url,opts){" +
             "    if(typeof url==='string' && url.indexOf('/nesco')>=0){" +
@@ -907,6 +911,14 @@ public class MainActivity extends Activity {
             } catch (Exception e) {
                 Log.w(TAG, "removeDescoAccount failed", e);
             }
+        }
+
+        @JavascriptInterface
+        public void closeDescoLogin() {
+            runOnUiThread(() -> {
+                addingDescoAccount = false;
+                webView.loadUrl(WEB_URL);
+            });
         }
 
         @JavascriptInterface

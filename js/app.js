@@ -113,7 +113,8 @@ const I18N = {
     'settings.desco_login': 'DESCO Login', 'settings.desco_logout': 'Remove DESCO Account', 'settings.desco_web_hint': 'The DESCO portal blocks websites from reading live data, so logging in here cannot refresh this website. Use the Android app to log in — the website then shows your last synced balance.', 'settings.desco_open_portal': 'Open portal anyway',
     'settings.desco_hint': 'Portal sessions are saved on this device only.',
     'settings.desco_add_account': 'Add account', 'settings.desco_no_accounts': 'No DESCO account added yet.',
-    'settings.desco_active': 'Active', 'settings.desco_use': 'Use',
+    'settings.desco_active': 'Active',
+    'settings.desco_reactivate': 'Reactivate', 'settings.desco_use': 'Use',
     'settings.desco_remove_confirm': 'Remove this DESCO account? Its saved session will be deleted from this device.',
     'settings.desco_removed': 'DESCO account removed', 'settings.desco_switched': 'DESCO account switched',
     'settings.desco_added': 'DESCO account added: {n}',
@@ -231,7 +232,9 @@ const I18N = {
     'settings.desco_login': 'DESCO লগইন', 'settings.desco_web_hint': 'ডেসকো পোর্টাল ওয়েবসাইট থেকে লাইভ ডেটা আনা বন্ধ রেখেছে, তাই এখানে লগইন করলেও ডেটা রিফ্রেশ হবে না। অ্যান্ড্রয়েড অ্যাপে লগইন করুন — ওয়েবসাইটে তখন সর্বশেষ ব্যালেন্স দেখাবে।', 'settings.desco_open_portal': 'যেকোনোভাবে পোর্টাল খুলুন',
     'settings.desco_hint': 'পোর্টাল সেশন শুধু এই ডিভাইসে সংরক্ষিত থাকে।',
     'settings.desco_add_account': 'অ্যাকাউন্ট যোগ করুন', 'settings.desco_no_accounts': 'এখনো কোনো DESCO অ্যাকাউন্ট যোগ করা হয়নি।',
-    'settings.desco_active': 'সক্রিয়', 'settings.desco_use': 'ব্যবহার করুন',
+    'settings.desco_active': 'সক্রিয়',
+    'settings.desco_reactivate': 'পুনরায় সক্রিয়',
+    'settings.desco_reactivate': 'রিঅ্যাক্টিভেট', 'settings.desco_use': 'ব্যবহার করুন',
     'settings.desco_remove_confirm': 'এই DESCO অ্যাকাউন্টটি মুছে ফেলবেন? এর সংরক্ষিত সেশন এই ডিভাইস থেকে মুছে যাবে।',
     'settings.desco_removed': 'DESCO অ্যাকাউন্ট মুছে ফেলা হয়েছে', 'settings.desco_switched': 'DESCO অ্যাকাউন্ট পরিবর্তন হয়েছে',
     'settings.desco_added': 'DESCO অ্যাকাউন্ট যোগ হয়েছে: {n}',
@@ -1316,7 +1319,6 @@ async function renderMeterDetail() {
   c.innerHTML = `
     <div class="page-head">
       <h2 style="font-size:19px;flex:1">${esc(m.nickname || m.info?.customerName || m.info?.name || m.accountNo || m.meterNo || m.consumerNo)}</h2>
-      ${m.provider === 'desco' && !isSharedView ? `<button class="icon-btn" style="width:34px;height:34px" onclick="window._copyMeterLink()" aria-label="Copy direct link" title="Copy direct link"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg></button>` : ''}
     </div>
     <div class="balance-hero">
       <div class="bh-label"><span>${esc(t('detail.balance'))}</span><span><b style="font-size:11px;letter-spacing:.6px;text-transform:uppercase;color:var(--primary-2)">${m.provider === 'nesco' ? 'NESCO' : 'DESCO'}</b> · ${esc(m.info?.accountNo || m.accountNo || m.consumerNo || '')}</span></div>
@@ -2390,7 +2392,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.41'} (build ${'868'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.43'} (build ${'874'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
@@ -2440,9 +2442,7 @@ window._settingsDescoLogin = function() {
         <div class="sett-item" style="cursor:default">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="opacity:.6"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/></svg>
           <span style="flex:1">${esc(a.label || 'Account')}</span>
-          ${a.active
-            ? `<span class="hint" style="margin:0 4px 0 0;color:var(--accent)">${esc(t('settings.desco_active'))}</span>`
-            : `<button type="button" class="btn secondary sm" onclick="window._settingsDescoUse('${a.id}')">${esc(t('settings.desco_use'))}</button>`}
+          <button type="button" class="btn secondary sm" onclick="window._settingsDescoUse('${a.id}')">${esc(a.active ? t('settings.desco_reactivate') : t('settings.desco_use'))}</button>
           <button type="button" class="btn danger sm" style="margin-left:6px" onclick="window._settingsDescoRemove('${a.id}')">${esc(t('btn.remove'))}</button>
         </div>`).join('') + `
       </div>`;
