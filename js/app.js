@@ -116,7 +116,7 @@ const I18N = {
     'settings.desco_active': 'Active',
     'settings.desco_reactivate': 'Reactivate', 'settings.desco_use': 'Use',
     'settings.desco_remove_confirm': 'Remove this DESCO account? Its saved session will be deleted from this device.',
-    'settings.desco_removed': 'DESCO account removed', 'settings.desco_switched': 'DESCO account switched',
+    'settings.desco_removed': 'DESCO account removed', 'settings.desco_switched': 'DESCO account switched', 'settings.desco_reactivating': 'Reactivating DESCO account...', 'settings.desco_reactivating': 'Reactivating DESCO account…',
     'settings.desco_added': 'DESCO account added: {n}',
     'settings.sign_out': 'Sign Out', 'settings.delete_account': 'Delete Account',
     'settings.reset_password': 'Reset Password',
@@ -236,7 +236,7 @@ const I18N = {
     'settings.desco_reactivate': 'পুনরায় সক্রিয়',
     'settings.desco_reactivate': 'রিঅ্যাক্টিভেট', 'settings.desco_use': 'ব্যবহার করুন',
     'settings.desco_remove_confirm': 'এই DESCO অ্যাকাউন্টটি মুছে ফেলবেন? এর সংরক্ষিত সেশন এই ডিভাইস থেকে মুছে যাবে।',
-    'settings.desco_removed': 'DESCO অ্যাকাউন্ট মুছে ফেলা হয়েছে', 'settings.desco_switched': 'DESCO অ্যাকাউন্ট পরিবর্তন হয়েছে',
+    'settings.desco_removed': 'DESCO অ্যাকাউন্ট মুছে ফেলা হয়েছে', 'settings.desco_switched': 'DESCO অ্যাকাউন্ট পরিবর্তন হয়েছে', 'settings.desco_reactivating': 'DESCO অ্যাকাউন্ট পুনরায় সক্রিয় করা হচ্ছে...',
     'settings.desco_added': 'DESCO অ্যাকাউন্ট যোগ হয়েছে: {n}',
     'settings.cloud_sync': 'ক্লাউড সিঙ্ক', 'settings.cloud_synced': 'মিটার আপনার অ্যাকাউন্টে সিঙ্ক হয়েছে',
     'settings.cloud_offline': 'অফলাইন – তথ্য স্থানীয়ভাবে সংরক্ষিত',
@@ -2383,7 +2383,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.55'} (build ${'910'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.56'} (build ${'913'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
@@ -2430,11 +2430,11 @@ window._settingsDescoLogin = function() {
   let body = `<p class="body-text" style="margin-top:0">${esc(t('settings.desco_hint'))}</p>`;
   if (accounts.length) {
     body += `<div class="sett-section-card" style="margin-bottom:12px">` + accounts.map(a => `
-        <div class="sett-item" style="cursor:default;flex-wrap:wrap;gap:8px">
+        <div class="sett-item" style="cursor:default;gap:8px">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="opacity:.6"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/></svg>
-          <span style="flex:1;min-width:100px">${esc(a.label || 'Account')}</span>
-          <button type="button" class="btn secondary sm" onclick="window.location.href='https://prepaid.desco.org.bd/login'">${esc(a.active ? t('settings.desco_reactivate') : t('settings.desco_use'))}</button>
-          <button type="button" class="btn danger sm" onclick="window._settingsDescoRemove('${a.id}')">${esc(t('btn.remove'))}</button>
+          <span style="flex:1;min-width:60px;font-size:13px">${esc(a.label || 'Account')}</span>
+          <button type="button" class="btn secondary sm" style="font-size:11px;padding:4px 8px" onclick="window.location.href='https://prepaid.desco.org.bd/login'">${esc(a.active ? t('settings.desco_reactivate') : t('settings.desco_use'))}</button>
+          <button type="button" class="btn danger sm" style="font-size:11px;padding:4px 8px" onclick="window._settingsDescoRemove('${a.id}')">${esc(t('btn.remove'))}</button>
         </div>`).join('') + `
       </div>`;
   } else {
@@ -2468,9 +2468,15 @@ window._settingsDescoAddAccount = function() {
     ]);
 };
 window._settingsDescoUse = function(id) {
-  try { window.NescoBridge && window.NescoBridge.setDescoActive && window.NescoBridge.setDescoActive(id); } catch (e) {}
-  window._settingsDescoLogin();
-  toast(t('settings.desco_switched'));
+  try {
+    if (window.NescoBridge && window.NescoBridge.removeDescoAccount) {
+      window.NescoBridge.removeDescoAccount(id);
+    }
+  } catch (e) {}
+  
+  // Directly trigger add account flow to re-login
+  window._settingsDescoAddAccount();
+  toast(t('settings.desco_reactivating'));
 };
 window._settingsDescoRemove = function(id) {
   openDialog(t('btn.remove'), `<p class="body-text">${esc(t('settings.desco_remove_confirm'))}</p>`, [
