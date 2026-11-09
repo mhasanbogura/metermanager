@@ -188,33 +188,39 @@ public class MainActivity extends Activity {
                 if (url != null && url.startsWith(DESCO_PORTAL)) {
                     // Trigger cookie capture after user logs in on the DESCO portal
                     view.evaluateJavascript("NescoBridge.saveDescoCookies();", null);
+                    // Show back button while on portal pages during add-account flow
+                    injectBackButton();
                     // "Add account" flow: a fresh DESCO_SESSION means login done.
-                    if (addingDescoAccount) maybeFinishDescoAdd(view);
-                }
-                injectOverrides();
-                if (url != null && url.startsWith(WEB_URL)) {
-                    if (pendingDescoNotify != null) {
-                        // Back from the portal with a newly captured account — tell JS.
-                        String payload = pendingDescoNotify;
-                        pendingDescoNotify = null;
-                        addingDescoAccount = false;
-                        view.evaluateJavascript(
-                            "window.__descoAccountAdded&&window.__descoAccountAdded(" + payload + ")", null);
-                    } else {
-                        // Normal app (re)load: make sure the active account's
-                        // session is in the cookie jar before API calls go out.
-                        restoreActiveDescoCookies();
+                    if (addingDescoAccount) {
+                        maybeFinishDescoAdd(view);
+                        injectBackButton();
                     }
+                } else {
+                    injectOverrides();
+                    if (url != null && url.startsWith(WEB_URL)) {
+                        if (pendingDescoNotify != null) {
+                            // Back from the portal with a newly captured account — tell JS.
+                            String payload = pendingDescoNotify;
+                            pendingDescoNotify = null;
+                            addingDescoAccount = false;
+                            view.evaluateJavascript(
+                                "window.__descoAccountAdded&&window.__descoAccountAdded(" + payload + ")", null);
+                        } else {
+                            // Normal app (re)load: make sure the active account's
+                            // session is in the cookie jar before API calls go out.
+                            restoreActiveDescoCookies();
+                        }
+                    }
+                    view.evaluateJavascript(
+                        "(function(){var t=document.querySelector('meta[name=theme-color]');return t?t.content:'light'})()",
+                        value -> {
+                            String color = value != null ? value.replace("\"", "") : "light";
+                            if ("light".equals(color)) color = "#f2f4f8";
+                            else if ("dark".equals(color)) color = "#0f1218";
+                            else if ("oled".equals(color)) color = "#000000";
+                            setStatusBarColorDirect(color);
+                        });
                 }
-                view.evaluateJavascript(
-                    "(function(){var t=document.querySelector('meta[name=theme-color]');return t?t.content:'light'})()",
-                    value -> {
-                        String color = value != null ? value.replace("\"", "") : "light";
-                        if ("light".equals(color)) color = "#f2f4f8";
-                        else if ("dark".equals(color)) color = "#0f1218";
-                        else if ("oled".equals(color)) color = "#000000";
-                        setStatusBarColorDirect(color);
-                    });
             }
 
             @Override
@@ -258,11 +264,6 @@ public class MainActivity extends Activity {
             "(function(){" +
             "  if(window.__mm_injected) return;" +
             "  window.__mm_injected=true;" +
-            "  var backBtn=document.createElement('div');" +
-            "  backBtn.innerHTML='<div id=\"mm-back-btn\" style=\"position:fixed;bottom:20px;right:20px;z-index:9999;background:#0b3d91;color:white;padding:10px 15px;border-radius:20px;font-weight:600;box-shadow:0 4px 6px rgba(0,0,0,0.3);cursor:pointer;font-size:14px\">← Back to Meter Manager</div>';" +
-            "  var btnEl = backBtn.firstChild;" +
-            "  btnEl.onclick=function(){ NescoBridge.saveDescoCookies(); NescoBridge.closeDescoLogin(); };" +
-            "  document.body.appendChild(btnEl);" +
             "  var origFetch=window.fetch;" +
             "  window.fetch=function(url,opts){" +
             "    if(typeof url==='string' && url.indexOf('/nesco')>=0){" +
@@ -279,6 +280,19 @@ public class MainActivity extends Activity {
             "    }" +
             "    return origFetch.call(this,url,opts);" +
             "};" +
+            "})();";
+        webView.evaluateJavascript(js, null);
+    }
+
+    private void injectBackButton() {
+        String js =
+            "(function(){" +
+            "  if(document.getElementById('mm-back-btn')) return;" +
+            "  var backBtn=document.createElement('div');" +
+            "  backBtn.innerHTML='<div id=\"mm-back-btn\" style=\"position:fixed;bottom:0;left:0;right:0;z-index:9999;background:#0b3d91;color:white;padding:15px;text-align:center;font-weight:600;cursor:pointer;font-size:16px\">← Back to Meter Manager</div>';" +
+            "  var btnEl = backBtn.firstChild;" +
+            "  btnEl.onclick=function(){ if(window.maybeFinishDescoAdd) window.maybeFinishDescoAdd(); NescoBridge.saveDescoCookies(); NescoBridge.closeDescoLogin(); };" +
+            "  document.body.appendChild(btnEl);" +
             "})();";
         webView.evaluateJavascript(js, null);
     }
