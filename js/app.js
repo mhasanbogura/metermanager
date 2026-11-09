@@ -15,7 +15,7 @@ const I18N = {
     'home.reorder': 'Drag to reorder', 'home.avg_day': 'Average Daily Cost: {v}',
     'home.desc': 'Your prepaid meter balances and usage, pulled live from DESCO and NESCO Server.',
     'home.last_updated': 'Updated {t}', 'home.updated_never': 'Not updated yet', 'home.low': 'Low balance',
-    'home.refreshing': 'Updating…', 'home.pull_refresh': 'Pull to refresh', 'home.max': 'Maximum 5 meters allowed.',
+    'home.refreshing': 'Updating…', 'home.stale': 'Last synced', 'home.pull_refresh': 'Pull to refresh', 'home.max': 'Maximum 5 meters allowed.',
     'meter.desco': 'DESCO', 'meter.nesco': 'NESCO',
     'meter.remove_q': 'Remove this meter?', 'meter.remove_text': 'The meter will be removed from this device only.',
     'btn.cancel': 'Cancel', 'btn.remove': 'Remove', 'btn.add': 'Add meter', 'btn.close': 'Close', 'btn.ok': 'OK', 'btn.edit': 'Edit',
@@ -37,7 +37,7 @@ const I18N = {
     'detail.reading_time': 'Collected: {t}',
     'detail.reading_value': 'Last reading: {v} kWh',
     'detail.daily': 'Daily consumption (last 15 days)', 'detail.monthly': 'Monthly consumption (last 12 months)',
-    'detail.recharge_history': 'Recharge history', 'detail.recharge_empty': 'No recharges in the last year.',
+    'detail.recharge_history': 'Recharge history', 'detail.recharge_empty': 'No recharges in the last year.', 'detail.stale': 'Showing last synced data. Refresh in the Android app for live values.',
     'detail.total': 'Total', 'detail.energy': 'Energy', 'detail.vat': 'VAT', 'detail.rebate': 'Rebate', 'detail.meter_rent': 'Meter Rent', 'detail.demand_charge': 'Demand Charge',
     'detail.date': 'Date', 'detail.order': 'Order', 'detail.token': 'Token', 'detail.kwh': 'kWh', 'detail.bdt': '৳',
     'detail.chart_unit': 'kWh', 'detail.chart_taka': '৳',
@@ -128,7 +128,7 @@ const I18N = {
     'home.reorder': 'সাজাতে টেনে আনুন', 'home.avg_day': 'প্রতিদিন গড় খরচ: {v}',
     'home.desc': 'ডেসকো ও নেসকো সার্ভার থেকে সরাসরি আনা আপনার প্রিপেইড মিটারের ব্যালেন্স ও ব্যবহার।',
     'home.last_updated': 'আপডেট হয়েছে {t}', 'home.updated_never': 'এখনো আপডেট হয়নি', 'home.low': 'ব্যালেন্স কম',
-    'home.refreshing': 'আপডেট হচ্ছে…', 'home.pull_refresh': 'রিফ্রেশ করতে টানুন', 'home.max': 'সর্বোচ্চ ৫টি মিটার যোগ করা যাবে।',
+    'home.refreshing': 'আপডেট হচ্ছে…', 'home.stale': 'সর্বশেষ সিঙ্ক', 'home.pull_refresh': 'রিফ্রেশ করতে টানুন', 'home.max': 'সর্বোচ্চ ৫টি মিটার যোগ করা যাবে।',
     'meter.desco': 'ডেসকো', 'meter.nesco': 'নেসকো',
     'meter.remove_q': 'এই মিটারটি মুছে ফেলবেন?', 'meter.remove_text': 'মিটারটি শুধু এই ডিভাইস থেকে সরানো হবে।',
     'btn.cancel': 'বাতিল', 'btn.remove': 'মুছে ফেলুন', 'btn.add': 'মিটার যোগ করুন', 'btn.close': 'বন্ধ', 'btn.ok': 'ঠিক আছে', 'btn.edit': 'সম্পাদনা',
@@ -150,7 +150,7 @@ const I18N = {
     'detail.reading_time': 'সংগ্রহ: {t}',
     'detail.reading_value': 'শেষ রিডিং: {v} kWh',
     'detail.daily': 'দৈনিক ব্যবহার (শেষ ১৫ দিন)', 'detail.monthly': 'মাসিক ব্যবহার (শেষ ১২ মাস)',
-    'detail.recharge_history': 'রিচার্জ ইতিহাস', 'detail.recharge_empty': 'গত এক বছরে কোনো রিচার্জ নেই।',
+    'detail.recharge_history': 'রিচার্জ ইতিহাস', 'detail.recharge_empty': 'গত এক বছরে কোনো রিচার্জ নেই।', 'detail.stale': 'সর্বশেষ সিঙ্ক করা ডেটা দেখানো হচ্ছে। লাইভ আপডেটের জন্য অ্যান্ড্রয়েড অ্যাপ ব্যবহার করুন।',
     'detail.total': 'মোট', 'detail.energy': 'এনার্জি', 'detail.vat': 'ভ্যাট', 'detail.rebate': 'রিবেট', 'detail.meter_rent': 'মিটার রেন্ট', 'detail.demand_charge': 'ডিমান্ড চার্জ',
     'detail.date': 'তারিখ', 'detail.order': 'অর্ডার', 'detail.token': 'টোকেন', 'detail.kwh': 'কিলোওয়াট', 'detail.bdt': '৳',
     'detail.chart_unit': 'কিলোওয়াট', 'detail.chart_taka': '৳',
@@ -658,13 +658,19 @@ async function refreshMeter(meter, opts = {}) {
       await refreshMeterOnce(meter);
       break;
     } catch (e) {
-      meter.err = t('err.network');
+      /* Never blank values we already have — mark them stale instead, so the
+         web (which cannot reach the DESCO portal at all) still shows the
+         last synced balance from the database. */
+      if (meter.balance != null) { meter.stale = true; meter.err = null; }
+      else meter.err = t('err.network');
       if (i < maxTries) await new Promise(r => setTimeout(r, 1000 * i));
     }
   }
   meter.updatedAt = Date.now();
   meter.loading = false;
-  if (!opts.silent) { renderHome(); if (currentView === 'meter' && currentMeterId === meter.id) renderMeterDetail(); }
+  /* Persist the refreshed values so the web app can load them from the
+     database with the same account. */
+  if (!opts.silent) { saveMeters(); renderHome(); if (currentView === 'meter' && currentMeterId === meter.id) renderMeterDetail(); }
 }
 
 async function refreshMeterOnce(meter) {
@@ -706,18 +712,25 @@ async function refreshMeterOnce(meter) {
         meter.readingTime = bal.readingTime || bal.receivedAt || meter.readingTime;
         if (bal.meterNo) meter.meterNo = bal.meterNo;
         meter.err = null;
+        meter.stale = false;
       } else if (balErr && balErr.status === 401) {
-        meter.balance = null;
         meter.err = t('err.session');
       } else if (balErr) {
         throw balErr; /* network/timeout → retry loop */
       } else {
-        meter.balance = null;
         meter.err = t('err.server');
       }
     } catch (e) {
-      if (e && e.status === 401) { meter.balance = null; meter.err = t('err.session'); return; }
-      if (e && e.code === 'notfound') { meter.balance = null; meter.err = t('add.notfound'); return; }
+      /* The DESCO portal rejects every website with CORS (403), so on the web
+         a refresh can never succeed — show the last synced values from the
+         database instead of an error. */
+      if (!window.NescoBridge) {
+        if (meter.balance != null) { meter.stale = true; meter.err = null; }
+        else meter.err = t('err.network');
+        return;
+      }
+      if (e && e.status === 401) { meter.err = t('err.session'); return; }
+      if (e && e.code === 'notfound') { meter.err = t('add.notfound'); return; }
       throw e;
     }
   } else if (meter.provider === 'nesco') {
@@ -742,6 +755,7 @@ async function refreshMeterOnce(meter) {
     if (!meter.readingTime) meter.readingTime = new Date().toISOString();
     meter.consumerNo = r.info.consumerNo || meter.consumerNo;
     meter.err = null;
+    meter.stale = false;
   }
 }
 
@@ -758,12 +772,16 @@ async function refreshAllMeters(opts = {}) {
     try {
       await refreshMeter(m, { silent: true, tries: opts.tries ?? 2 });
     } catch (e) {
-      m.err = e.message || 'Error';
-      m.balance = null; // show -- on failure / no connection
+      /* Keep the last synced values when a refresh fails. */
+      if (m.balance != null) { m.stale = true; m.err = null; }
+      else { m.err = e.message || 'Error'; m.balance = null; }
     } finally {
       m.loading = false;
     }
   }));
+  /* Persist refreshed balances/info so the web can load them from the
+     database with the same account. */
+  saveMeters();
   renderHome();
 }
 
@@ -1291,7 +1309,7 @@ async function renderMeterDetail() {
         ${m.provider === 'nesco' && m.lastReading ? `<span>${esc(t('detail.reading_value', { v: m.lastReading }))}</span>` : ''}
         <span>${esc(t('detail.balance_updated', { t: timeAgo(m.readingTime ? new Date(m.readingTime).getTime() : m.updatedAt) }))}</span>
       </div>
-      ${m.loading ? '<div style="opacity:.9;font-size:12.5px">' + esc(t('home.refreshing')) + '</div>' : (m.err ? `<div style="opacity:.9;font-size:12.5px;color:#ffd9d9">${esc(m.err)}${window.NescoBridge ? '' : ' <a href="' + t('settings.android_app_url') + '" style="color:#3b82f6;text-decoration:underline">Get the Android app</a> to continue.'}</div>` : '')}
+      ${m.loading ? '<div style="opacity:.9;font-size:12.5px">' + esc(t('home.refreshing')) + '</div>' : (m.err ? `<div style="opacity:.9;font-size:12.5px;color:#ffd9d9">${esc(m.err)}${window.NescoBridge ? '' : ' <a href="' + t('settings.android_app_url') + '" style="color:#fff;text-decoration:underline;font-weight:600">' + esc(t('settings.get_app')) + '</a> to continue.'}</div>` : (m.stale ? `<div style="opacity:.9;font-size:12.5px;color:#ffe08a">${esc(t('detail.stale'))}</div>` : ''))}
     </div>
     ${m.provider === 'desco' ? renderInfoCard(m) : ''}
     ${m.provider === 'desco' ? '<div id="totalUseWrap"></div>' : ''}
@@ -1502,11 +1520,21 @@ async function loadDetailData(m) {
     monthly = descoMonthlyAdapter(mR) || [];
     hist = descoHistoryAdapter(hR) || [];
   }
+  /* The portal blocks every web origin (CORS 403), so on the website the
+     fetches come back empty — fall back to the charts saved with the meter,
+     which sync from Firebase after a refresh in the Android app. */
+  if (!daily.length && !monthly.length && !hist.length) {
+    daily = m.dailyData || [];
+    monthly = m.monthlyData || [];
+    hist = m.histData || [];
+  }
 
   if (currentMeterId !== m.id) return;
   const days = normalizeDaily(daily);
   m.avgDailyCost = avgDailyCost(days);
-  m.dailyData = daily;
+  if (daily.length) m.dailyData = daily;
+  if (monthly.length) m.monthlyData = monthly;
+  if (hist.length) m.histData = hist;
   saveMeters();
   const dWrap = $('#consumptionWrap'); if (!dWrap) return;
   dWrap.innerHTML = `
@@ -1710,9 +1738,10 @@ function renderHome() {
      const low = lowBalance(m);
      const errShort = m.err ? (m.err.length > 30 ? m.err.slice(0, 29) + '…' : m.err) : '';
      const badge = m.err ? `<span class="mc-badge err" title="${esc(m.err)}">${esc(errShort)}</span>`
+       : m.stale ? `<span class="mc-badge" style="background:rgba(255,196,0,.14);color:#ffc400">${esc(t('home.stale'))}</span>`
        : m.loading ? `<span class="mc-badge ok">${esc(t('home.refreshing'))}</span>`
        : ``;
-     const avg = (m.loading || m.err || m.avgDailyCost == null) ? `--` : `<span class="mc-avg">${esc(t('home.avg_day', { v: fmtBdt(m.avgDailyCost) }))}</span>`;
+     const avg = (m.loading || m.avgDailyCost == null) ? `--` : `<span class="mc-avg">${esc(t('home.avg_day', { v: fmtBdt(m.avgDailyCost) }))}</span>`;
      return `<div class="meter-card" draggable="true" data-id="${m.id}" onclick="window.ppOpen('${m.id}')">
        <div class="mc-top">
          <span class="mc-provider">${m.provider === 'nesco' ? 'NESCO' : 'DESCO' + (m.sys === 'unified' ? ' · Unified' : '')}</span>
@@ -1729,8 +1758,8 @@ function renderHome() {
          </div>
        </div>
        <div class="mc-number">${esc(m.nickname || m.info?.customerName || m.info?.name || '')}${(m.nickname || m.info?.customerName || m.info?.name) ? '<br>' : ''}${esc(m.accountNo || m.meterNo || m.consumerNo)}</div>
-        <div class="mc-balance ${b !== null && low ? 'low' : ''}" style="${b !== null && low ? 'color:#ff6b6b' : ''}">${(state.updatingForUpdate || m.loading || m.err) ? '--' : (b === null ? '––' : fmtBdt(b))}${low ? ' <span style="font-size:12px;font-weight:700;color:#ff6b6b">' + esc(t('home.low')) + '</span>' : ''}</div>
-       <div class="mc-sub"><span>${(m.loading || m.err) ? esc(t('home.avg_day', { v: '--' })) : avg}</span><span>${(m.loading || m.err) ? esc(t('home.last_updated', { t: '--' })) : (m.readingTime ? esc(t('home.last_updated', { t: timeAgo(new Date(m.readingTime).getTime()) })) : (m.updatedAt ? esc(t('home.last_updated', { t: timeAgo(m.updatedAt) })) : esc(t('home.updated_never'))))}</span>${badge}</div>
+        <div class="mc-balance ${b !== null && low ? 'low' : ''}" style="${b !== null && low ? 'color:#ff6b6b' : ''}">${(state.updatingForUpdate || m.loading || (m.err && b === null)) ? '--' : (b === null ? '––' : fmtBdt(b))}${low ? ' <span style="font-size:12px;font-weight:700;color:#ff6b6b">' + esc(t('home.low')) + '</span>' : ''}</div>
+       <div class="mc-sub"><span>${m.loading ? esc(t('home.avg_day', { v: '--' })) : avg}</span><span>${m.loading ? esc(t('home.last_updated', { t: '--' })) : (m.readingTime ? esc(t('home.last_updated', { t: timeAgo(new Date(m.readingTime).getTime()) })) : (m.updatedAt ? esc(t('home.last_updated', { t: timeAgo(m.updatedAt) })) : esc(t('home.updated_never'))))}</span>${badge}</div>
      </div>`;
   }).join('');
   c.innerHTML = demoBanner + `
@@ -2092,7 +2121,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.31'} (build ${'838'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.32'} (build ${'841'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
@@ -2619,8 +2648,9 @@ async function emailLogin() {
       try {
         const methods = await auth.fetchSignInMethodsForEmail(email);
         if (methods && methods.includes('google.com')) m = 'This account was created with Google. Use "Login with Google".';
+        else if (methods && methods.includes('password')) m = 'Incorrect email or password. Check your password or use "Forgot Password?".';
         else m = 'No account found. Please sign up.';
-      } catch { m = 'No account found. Please sign up.'; }
+      } catch { m = 'Incorrect email or password. Check your password or use "Forgot Password?".'; }
     }
     toast(m, true);
   } finally { btn.disabled = false; btn.textContent = orig; }
@@ -2736,6 +2766,7 @@ async function loadFromCloud() {
   try {
     const snap = await db.ref('users/' + currentUser.uid + '/meters').once('value');
     const cloudMeters = snap.val();
+    console.log('Cloud load', currentUser.uid, '->', Array.isArray(cloudMeters) ? cloudMeters.length : (cloudMeters ? Object.keys(cloudMeters).length : 0), 'meter(s)');
     if (cloudMeters && Array.isArray(cloudMeters) && cloudMeters.length > 0) {
       state.meters = cloudMeters;
       saveMeters();
@@ -2750,6 +2781,7 @@ async function saveToCloud() {
   if (!currentUser) return;
   try {
     await db.ref('users/' + currentUser.uid + '/meters').set(state.meters);
+    console.log('Cloud saved', state.meters.length, 'meter(s) for', currentUser.uid, 'first bal=', state.meters[0] ? state.meters[0].balance : '-');
   } catch (e) {
     console.warn('Cloud save failed:', e);
   }
