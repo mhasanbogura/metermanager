@@ -1829,7 +1829,7 @@ function renderTotalUse(m, monthly, hist, balance) {
 }
 function renderTotalUseCard(thisMonth, lastMonth) {
   return `<section class="card">
-    <h3 style="color:var(--text-2)">${esc(t('detail.total_use'))}</h3>
+    <h3 style="color:var(--primary);text-align:center">${esc(t('detail.total_use'))}</h3>
     <table class="list"><tbody>
       <tr><td style="color:var(--text-2)">${esc(t('detail.this_month'))}</td><td style="text-align:right"><strong>${fmtBdt(thisMonth.taka)}</strong></td><td style="text-align:right">${fmtUnits(thisMonth.unit)}</td></tr>
       <tr><td style="color:var(--text-2)">${esc(t('detail.last_month'))}</td><td style="text-align:right"><strong>${fmtBdt(lastMonth.taka)}</strong></td><td style="text-align:right">${fmtUnits(lastMonth.unit)}</td></tr>
@@ -2389,7 +2389,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.53'} (build ${'904'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.54'} (build ${'907'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
