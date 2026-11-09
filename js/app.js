@@ -2383,7 +2383,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.58'} (build ${'919'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.59'} (build ${'922'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
@@ -2448,24 +2448,11 @@ window._settingsDescoLogin = function() {
 window._settingsDescoAddAccount = function() {
   try {
     if (window.NescoBridge && typeof window.NescoBridge.openDescoLogin === 'function') {
-      /* Native opens the official portal inside the app and captures the
-         DESCO_SESSION / XSRF-TOKEN cookies when the login completes. */
       window.NescoBridge.openDescoLogin();
       return;
     }
   } catch (e) {}
-  /* Plain web: the portal blocks every website origin (CORS), so a login
-     here can never refresh live data — and navigating this tab away would
-     strand the user on the portal. Keep Meter Manager in place: explain,
-     offer the Android app (where login works natively), and only open the
-     portal in a separate tab if explicitly requested. */
-  openDialog(t('settings.desco_login'),
-    `<p class="body-text" style="margin-top:0">${esc(t('settings.desco_web_hint'))}</p>`,
-    [
-      { key: 'app', label: t('settings.get_app'), cls: '', fn: () => { closeDialog(); window.open(t('settings.android_app_url'), '_blank'); } },
-      { key: 'portal', label: t('settings.desco_open_portal'), cls: 'secondary', fn: () => { closeDialog(); window.open('https://prepaid.desco.org.bd/', '_blank'); } },
-      { key: 'close', label: t('btn.close'), cls: 'secondary', fn: closeDialog }
-    ]);
+  window.open('https://prepaid.desco.org.bd/', '_blank');
 };
 window._settingsDescoUse = function(id) {
   try { window.NescoBridge && window.NescoBridge.setDescoActive && window.NescoBridge.setDescoActive(id); } catch (e) {}
