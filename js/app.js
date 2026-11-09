@@ -1334,10 +1334,12 @@ async function renderMeterDetail() {
     ${m.provider === 'nesco' ? renderNescoInfoCard(m) : ''}
     ${m.provider === 'nesco' ? renderNescoTotalUse(m) : ''}
     ${m.provider === 'desco' ? '<div id="consumptionWrap"></div>' : ''}
+    ${m.provider === 'nesco' ? '<div id="nescoConsumptionWrap"></div>' : ''}
     ${m.provider === 'desco' ? '<div id="historyWrap"></div>' : ''}
     ${m.provider === 'nesco' ? renderNescoHistory(m) : ''}
   `;
   if (m.provider === 'desco') loadDetailData(m);
+  else if (m.provider === 'nesco') loadNescoUsageData(m);
 }
 function renderNescoInfoCard(m) {
   const i = m.info || {};
@@ -1564,6 +1566,47 @@ async function loadDetailData(m) {
     const total = hist.reduce((s, r) => s + (Number(r.totalAmount) || 0), 0);
     const el = $('#histTotal'); if (el) el.textContent = fmtBdt(total);
   }
+}
+/* ---- NESCO combined Usage card (same portal style as DESCO) ----
+   Collects monthly consumption from the NESCO panel's monthly-usage table
+   (e.g. October 2026 = ৳1,828.39 / 240.81 kWh) and renders it through the
+   shared renderUsageCard so NESCO gets the identical Daily/Monthly + Energy/
+   Cost card DESCO has. NESCO's panel exposes monthly (not daily) readings, so
+   the Daily tab shows gaps and the card auto-opens on Monthly. */
+function loadNescoUsageData(m) {
+  const wrap = $('#nescoConsumptionWrap'); if (!wrap) return;
+  wrap.innerHTML = '<div class="spinner"></div>';
+  const safeNum = v => { const n = parseFloat(String(v || 0).replace(/,/g, '')); return isNaN(n) ? 0 : n; };
+  const byMonth = {};
+  for (const row of (m.monthlyUsage || [])) {
+    if (row.key && row.nums && row.nums.length >= 4) {
+      byMonth[row.key] = { taka: safeNum(row.nums[3]), unit: row.unit != null ? safeNum(row.unit) : safeNum(row.nums[row.nums.length - 1]) };
+    }
+  }
+  /* Fallback: build monthly totals from recharge history when the monthly
+     table isn't available. */
+  if (!Object.keys(byMonth).length) {
+    for (const r of (m.history || [])) {
+      const key = (r.rechargeDate || '').slice(0, 7);
+      if (!key) continue;
+      if (!byMonth[key]) byMonth[key] = { taka: 0, unit: 0 };
+      byMonth[key].taka += safeNum(r.rechargeAmount);
+      byMonth[key].unit += safeNum(r.energyUnit);
+    }
+  }
+  const monthly = [];
+  for (let i = 11; i >= 0; i--) {
+    const key = monthStr(i);
+    const b = byMonth[key] || { taka: 0, unit: 0 };
+    monthly.push({ month: key, consumedUnit: b.unit, consumedTaka: b.taka });
+  }
+  /* NESCO panel has no per-day breakdown — Daily tab will show gaps (dots). */
+  const daily = [];
+
+  if (currentMeterId !== m.id) return;
+  saveMeters();
+  const nWrap = $('#nescoConsumptionWrap'); if (!nWrap) return;
+  renderUsageCard(nWrap, m, daily, monthly);
 }
 
 function normalizeDaily(daily) {
@@ -2345,7 +2388,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.39'} (build ${'862'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.40'} (build ${'865'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
