@@ -46,6 +46,7 @@ const I18N = {
     'detail.metric_energy': 'Energy (kWh)', 'detail.metric_cost': 'Cost (Tk)',
     'detail.month_reset': 'Month reset', 'detail.no_reading': 'No reading',
     'detail.cost': 'Cost', 'detail.cost_mtd': 'Cost (month-to-date)', 'detail.new_month': 'new month',
+    'detail.usage': 'Usage',
     'detail.avg_daily': 'Avg. daily cost: {v}',
     'detail.mobile': 'Mobile', 'detail.address': 'Address', 'detail.office': 'Office',
     'detail.meter_type': 'Meter type', 'detail.father': 'Father/Husband', 'detail.feed': 'Feeder',
@@ -163,6 +164,7 @@ const I18N = {
     'detail.metric_energy': 'শক্তি (kWh)', 'detail.metric_cost': 'খরচ (টাকা)',
     'detail.month_reset': 'নতুন মাস শুরু', 'detail.no_reading': 'কোনো রিডিং নেই',
     'detail.cost': 'খরচ', 'detail.cost_mtd': 'খরচ (মাসের শুরু থেকে)', 'detail.new_month': 'নতুন মাস',
+    'detail.usage': 'ব্যবহার',
     'detail.avg_daily': 'গড় দৈনিক খরচ: {v}',
     'detail.mobile': 'মোবাইল', 'detail.address': 'ঠিকানা', 'detail.office': 'অফিস',
     'detail.meter_type': 'মিটারের ধরন', 'detail.father': 'বাবা/স্বামীর নাম', 'detail.feed': 'ফিডার',
@@ -266,15 +268,16 @@ function loadState() {
   try {
     state.settings = JSON.parse(localStorage.getItem(LS_SETTINGS)) || {};
   } catch { state.settings = {}; }
-  const hadUsageMetric = state.settings.usageMetric;
   state.settings = Object.assign({
     lang: 'en', theme: 'system', alerts: false, alertThreshold: 200,
     alertFreq: 60, autoRefresh: true, autoFreq: 600,
-    usageTab: 'daily', usageMetric: 'unit'
+    usageTab: 'daily', usageMetric: 'taka'
   }, state.settings);
-  /* First visit honors the portal's ?metric=taka deep link as the default. */
-  if (!hadUsageMetric) {
-    try { if (new URLSearchParams(location.search).get('metric') === 'taka') state.settings.usageMetric = 'taka'; } catch (e) { /* keep default */ }
+  /* v856 briefly defaulted the metric to kWh — normalize that once, while
+     keeping any explicit choice made after this marker exists. */
+  if (!state.settings.usageV2) {
+    if (state.settings.usageMetric === 'unit') state.settings.usageMetric = 'taka';
+    state.settings.usageV2 = 1;
   }
 }
 function saveMeters() { localStorage.setItem(LS_METERS, JSON.stringify(state.meters)); if (currentUser) saveToCloud(); }
@@ -1645,12 +1648,11 @@ function renderUsageCard(wrap, m, daily, monthly) {
   let tab = state.settings.usageTab === 'monthly' ? 'monthly' : 'daily';
   if (tab === 'monthly' && !hasM && hasD) tab = 'daily';
   if (tab === 'daily' && !hasD && hasM) tab = 'monthly';
-  const acct = m.info?.accountNo || m.accountNo || m.consumerNo || '';
   _usage = { items, tab, metric: state.settings.usageMetric === 'taka' ? 'taka' : 'unit', sel: null };
   wrap.innerHTML = `
     <section class="card">
       <div class="usage-head">
-        <span class="usage-acct">${esc(acct ? acct + ' · DESCO' : 'DESCO')}</span>
+        <span class="usage-acct">${esc(t('detail.usage'))}</span>
         <div class="tabs">
           <button type="button" class="tab${tab === 'daily' ? ' active' : ''}" data-utab="daily">${esc(t('detail.daily_short'))}</button>
           <button type="button" class="tab${tab === 'monthly' ? ' active' : ''}" data-utab="monthly">${esc(t('detail.monthly_short'))}</button>
@@ -1713,6 +1715,7 @@ function updateUsageView() {
   if (pills) pills.style.display = has ? '' : 'none';
   if (empty) empty.style.display = has ? 'none' : '';
   u.sel = null; hideUsageTip();
+  const cv = $('#chUsage'); if (cv) cv._seen = 0; /* toggles reopen on the newest bar */
   if (!has) return;
   const leg = $('#usageLegend');
   if (leg) {
@@ -1968,7 +1971,7 @@ function niceStep(raw) {
   if (!(raw > 0)) return 1;
   const p = Math.pow(10, Math.floor(Math.log10(raw)));
   const n = raw / p;
-  return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10) * p;
+  return (n <= 1 ? 1 : n <= 1.5 ? 1.5 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 3 ? 3 : n <= 4 ? 4 : n <= 5 ? 5 : n <= 7.5 ? 7.5 : 10) * p;
 }
 function roundTopRect(ctx, x, y, w, h, r) {
   r = Math.max(0, Math.min(r, w / 2, h));
@@ -1990,12 +1993,28 @@ function drawUsageChart() {
   const maxV = Math.max(1, ...vals);
   const gStep = niceStep(maxV / 4);
   const top = gStep * 4;
+  const padL = 52, padR = 10, padT = 76, padB = 30;
+  const n = items.length;
+  /* Portal's min bar slot (58px): below this width the chart scrolls
+     sideways inside its card — exactly like the Recharge history table. */
+  const SLOT_MIN = 58;
   const dpr = window.devicePixelRatio || 1;
-  const w = Math.max(canvas.clientWidth, 300);
+  const holder = canvas.parentElement;
+  const cw = holder ? holder.clientWidth : canvas.clientWidth;
+  if (!cw) return; /* detail view hidden — nothing to size against */
+  const w = Math.max(cw, Math.round(n * SLOT_MIN + padL + padR));
   const h = 260;
+  const prevLeft = holder ? holder.scrollLeft : 0;
+  canvas.style.width = w + 'px';
   canvas.width = Math.round(w * dpr);
   canvas.height = Math.round(h * dpr);
   canvas.style.height = h + 'px';
+  if (holder) {
+    /* First paint opens on the newest bar (right edge, like the history
+       table's newest-first rows); taps/resizes keep the user's position. */
+    holder.scrollLeft = canvas._seen ? Math.min(prevLeft, holder.scrollWidth - holder.clientWidth) : holder.scrollWidth;
+    canvas._seen = 1;
+  }
   const ctx = canvas.getContext('2d');
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, w, h);
@@ -2004,9 +2023,7 @@ function drawUsageChart() {
   const grid = css.getPropertyValue('--chart-grid').trim() || css.getPropertyValue('--border').trim() || '#e6e9ef';
   const series = css.getPropertyValue('--series-1').trim() || '#2a78d6';
   const neutral = css.getPropertyValue('--n-400').trim() || '#98a1ac';
-  const padL = 52, padR = 10, padT = 76, padB = 30;
   const iw = w - padL - padR, ih = h - padT - padB;
-  const n = items.length;
   const slot = iw / Math.max(1, n);
   const bw = Math.min(28, slot * 0.6);
   const y0 = padT + ih;
@@ -2059,7 +2076,6 @@ function drawUsageChart() {
   }
 
   /* rounded-top bars + value labels; missing readings become dots */
-  const labEvery = Math.max(1, Math.ceil((u.tab === 'daily' ? 36 : 48) / slot));
   items.forEach((it, i) => {
     ctx.globalAlpha = (u.sel != null && u.sel !== i) ? 0.38 : 1;
     if (it.gap) {
@@ -2081,7 +2097,7 @@ function drawUsageChart() {
       roundTopRect(ctx, x, y, bw, bh, 3);
       ctx.fill();
     }
-    if (v > 0 && i % labEvery === 0) {
+    if (v > 0) {
       ctx.fillStyle = txt2;
       ctx.font = '600 10.5px sans-serif';
       ctx.textAlign = 'center';
@@ -2091,13 +2107,11 @@ function drawUsageChart() {
   });
 
   /* x axis: day numbers / month labels */
-  const xEvery = Math.max(1, Math.ceil((u.tab === 'daily' ? 15 : 34) / slot));
   ctx.globalAlpha = 1;
   ctx.fillStyle = txt2;
   ctx.font = '10.5px sans-serif';
   ctx.textAlign = 'center';
   items.forEach((it, i) => {
-    if (i % xEvery) return;
     ctx.fillText(it.label, cx(i), h - 12);
   });
 }
@@ -2330,7 +2344,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.37'} (build ${'856'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.38'} (build ${'859'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
