@@ -2383,7 +2383,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.56'} (build ${'913'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.57'} (build ${'916'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
@@ -2468,15 +2468,9 @@ window._settingsDescoAddAccount = function() {
     ]);
 };
 window._settingsDescoUse = function(id) {
-  try {
-    if (window.NescoBridge && window.NescoBridge.removeDescoAccount) {
-      window.NescoBridge.removeDescoAccount(id);
-    }
-  } catch (e) {}
-  
-  // Directly trigger add account flow to re-login
-  window._settingsDescoAddAccount();
-  toast(t('settings.desco_reactivating'));
+  try { window.NescoBridge && window.NescoBridge.setDescoActive && window.NescoBridge.setDescoActive(id); } catch (e) {}
+  window._settingsDescoLogin();
+  toast(t('settings.desco_switched'));
 };
 window._settingsDescoRemove = function(id) {
   openDialog(t('btn.remove'), `<p class="body-text">${esc(t('settings.desco_remove_confirm'))}</p>`, [

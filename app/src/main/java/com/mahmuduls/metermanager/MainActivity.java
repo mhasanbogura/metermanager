@@ -263,7 +263,7 @@ public class MainActivity extends Activity {
             "  var backBtn=document.createElement('div');" +
             "  backBtn.innerHTML='<div id=\"mm-back-btn\" style=\"position:fixed;top:10px;left:10px;z-index:9999;background:#0b3d91;color:white;padding:10px 15px;border-radius:20px;font-weight:600;box-shadow:0 4px 6px rgba(0,0,0,0.3);cursor:pointer;font-size:14px\">← Back to Meter Manager</div>';" +
             "  var btnEl = backBtn.firstChild;" +
-            "  btnEl.onclick=function(){ NescoBridge.closeDescoLogin(); };" +
+            "  btnEl.onclick=function(){ NescoBridge.saveDescoCookies(); NescoBridge.closeDescoLogin(); };" +
             "  document.body.appendChild(btnEl);" +
             "  var origFetch=window.fetch;" +
             "  window.fetch=function(url,opts){" +
