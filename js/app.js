@@ -1301,15 +1301,15 @@ async function renderMeterDetail() {
       ${m.provider === 'desco' && !isSharedView ? `<button class="icon-btn" style="width:34px;height:34px" onclick="window._copyMeterLink()" aria-label="Copy direct link" title="Copy direct link"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg></button>` : ''}
     </div>
     <div class="balance-hero">
-      <div class="bh-label"><span>${esc(t('detail.balance'))}</span><span>${m.provider === 'nesco' ? 'NESCO' : 'DESCO'} · ${esc(m.info?.accountNo || m.accountNo || m.consumerNo || '')}</span></div>
+      <div class="bh-label"><span>${esc(t('detail.balance'))}</span><span><b style="font-size:11px;letter-spacing:.6px;text-transform:uppercase;color:var(--primary-2)">${m.provider === 'nesco' ? 'NESCO' : 'DESCO'}</b> · ${esc(m.info?.accountNo || m.accountNo || m.consumerNo || '')}</span></div>
       <div class="bh-amount"${lowBalance(m) && m.balance != null ? ' style="color:#ff6b6b"' : ''}>${m.balance === null ? '––' : fmtBdt(m.balance)}${lowBalance(m) ? ' <span style="font-size:13px;font-weight:700;color:#ff6b6b">' + esc(t('home.low')) + '</span>' : ''}</div>
       <div class="bh-meta">
         <span>${esc(t('detail.meter'))}: ${esc(m.info?.meterNo || m.meterNo || m.consumerNo || '–')}</span>
-        ${m.avgDailyCost != null ? `<span>${esc(t('home.avg_day', { v: fmtBdt(m.avgDailyCost) }))}</span>` : ''}
+        ${m.avgDailyCost != null ? `<span class="bh-avg">${esc(t('home.avg_day', { v: fmtBdt(m.avgDailyCost) }))}</span>` : ''}
         ${m.provider === 'nesco' && m.lastReading ? `<span>${esc(t('detail.reading_value', { v: m.lastReading }))}</span>` : ''}
         <span>${esc(t('detail.balance_updated', { t: timeAgo(m.readingTime ? new Date(m.readingTime).getTime() : m.updatedAt) }))}</span>
       </div>
-      ${m.loading ? '<div style="opacity:.9;font-size:12.5px">' + esc(t('home.refreshing')) + '</div>' : (m.err ? `<div style="opacity:.9;font-size:12.5px;color:#ffd9d9">${esc(m.err)}${window.NescoBridge ? '' : ' <a href="' + t('settings.android_app_url') + '" style="color:#fff;text-decoration:underline;font-weight:600">' + esc(t('settings.get_app')) + '</a> to continue.'}</div>` : (m.stale ? `<div style="opacity:.9;font-size:12.5px;color:#ffe08a">${esc(t('detail.stale'))}</div>` : ''))}
+      ${m.loading ? '<div style="opacity:.9;font-size:12.5px">' + esc(t('home.refreshing')) + '</div>' : (m.err ? `<div class="bh-error" style="font-size:12.5px">${esc(m.err)}${window.NescoBridge ? '' : ' <a href="' + t('settings.android_app_url') + '" style="color:var(--primary-2);text-decoration:underline;font-weight:600">' + esc(t('settings.get_app')) + '</a> to continue.'}</div>` : (m.stale ? `<div class="bh-stale" style="font-size:12.5px">${esc(t('detail.stale'))}</div>` : ''))}
     </div>
     ${m.provider === 'desco' ? renderInfoCard(m) : ''}
     ${m.provider === 'desco' ? '<div id="totalUseWrap"></div>' : ''}
@@ -2121,7 +2121,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.33'} (build ${'844'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.34'} (build ${'847'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
