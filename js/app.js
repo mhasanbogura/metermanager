@@ -12,7 +12,7 @@ const I18N = {
     'home.empty.title': 'No meter added yet', 'home.empty.text': 'Enter your 8-digit DESCO account number, 12-digit meter number, or NESCO consumer number to see live balance, consumption and recharge history.',
     'home.hero': 'Check your DESCO / NESCO prepaid electricity meter: live balance, daily & monthly usage, average daily cost and recharge history — all in a web.',
     'hero.live': 'Live balance & meter info', 'hero.cost': 'Average Daily Cost', 'hero.history': 'Total use of this month & last month', 'hero.consumption': 'Daily & monthly consumption', 'hero.recharge': 'Recharge history',
-    'home.reorder': 'Drag to reorder', 'home.avg_day': 'Average Daily Cost: {v}',
+    'home.reorder': 'Drag to reorder', 'home.avg_day': 'Avg. Daily Cost (7 Days): {v}',
     'home.desc': 'Your prepaid meter balances and usage, pulled live from DESCO and NESCO Server.',
     'home.last_updated': 'Updated {t}', 'home.updated_never': 'Not updated yet', 'home.low': 'Low balance',
     'home.refreshing': 'Updating…', 'home.stale': 'Last synced', 'home.pull_refresh': 'Pull to refresh', 'home.max': 'Maximum 5 meters allowed.',
@@ -130,7 +130,7 @@ const I18N = {
     'home.empty.title': 'এখনো কোনো মিটার যোগ করা হয়নি', 'home.empty.text': 'ডেসকো ৮ অंকের অ্যাকাউন্ট নম্বর, ১২ অংকের মিটার নম্বর অথবা নেসকো কনজিউমার নম্বর দিন — লাইভ ব্যালেন্স, ব্যবহার ও রিচার্জ ইতিহাস দেখুন।',
     'home.hero': 'ডেসকো/নেসকো প্রিপেইড বিদ্যুৎ মিটার যাচাই করুন: লাইভ ব্যালেন্স, দৈনিক-মাসিক ব্যবহার, গড় দৈনিক খরচ ও রিচার্জ ইতিহাস — সব এক জায়গায়।',
     'hero.live': 'লাইভ ব্যালেন্স ও মিটারের তথ্য', 'hero.cost': 'গড় দৈনিক খরচ', 'hero.history': 'এই মাস ও গত মাসের মোট ব্যবহার', 'hero.consumption': 'দৈনিক ও মাসিক ব্যবহার', 'hero.recharge': 'রিচার্জ ইতিহাস',
-    'home.reorder': 'সাজাতে টেনে আনুন', 'home.avg_day': 'প্রতিদিন গড় খরচ: {v}',
+    'home.reorder': 'সাজাতে টেনে আনুন', 'home.avg_day': 'গড় দৈনিক খরচ (৭ দিন): {v}',
     'home.desc': 'ডেসকো ও নেসকো সার্ভার থেকে সরাসরি আনা আপনার প্রিপেইড মিটারের ব্যালেন্স ও ব্যবহার।',
     'home.last_updated': 'আপডেট হয়েছে {t}', 'home.updated_never': 'এখনো আপডেট হয়নি', 'home.low': 'ব্যালেন্স কম',
     'home.refreshing': 'আপডেট হচ্ছে…', 'home.stale': 'সর্বশেষ সিঙ্ক', 'home.pull_refresh': 'রিফ্রেশ করতে টানুন', 'home.max': 'সর্বোচ্চ ৫টি মিটার যোগ করা যাবে।',
@@ -263,6 +263,16 @@ let langs = I18N.en;
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 
+/* v856 briefly defaulted the metric to kWh — normalize that once. Runs after the
+   local load AND after the cloud merge, so a stale cloud copy synced before that
+   build can't carry the old 'unit' default back past the migration. Only a metric
+   pill tap records an explicit choice (usageV3), which is what we protect. */
+function normalizeUsageDefaults() {
+  if (!state.settings) return;
+  if (state.settings.usageMetric === 'unit' && !state.settings.usageV3) state.settings.usageMetric = 'taka';
+  if (state.settings.usageTab !== 'daily' && state.settings.usageTab !== 'monthly') state.settings.usageTab = 'daily';
+  state.settings.usageV2 = 1;
+}
 function loadState() {
   try { state.meters = JSON.parse(localStorage.getItem(LS_METERS)) || []; } catch { state.meters = []; }
   try {
@@ -273,12 +283,7 @@ function loadState() {
     alertFreq: 60, autoRefresh: true, autoFreq: 600,
     usageTab: 'daily', usageMetric: 'taka'
   }, state.settings);
-  /* v856 briefly defaulted the metric to kWh — normalize that once, while
-     keeping any explicit choice made after this marker exists. */
-  if (!state.settings.usageV2) {
-    if (state.settings.usageMetric === 'unit') state.settings.usageMetric = 'taka';
-    state.settings.usageV2 = 1;
-  }
+  normalizeUsageDefaults();
 }
 function saveMeters() { localStorage.setItem(LS_METERS, JSON.stringify(state.meters)); if (currentUser) saveToCloud(); }
 function saveSettings() { localStorage.setItem(LS_SETTINGS, JSON.stringify(state.settings)); if (currentUser) saveSettingsToCloud(); }
@@ -639,21 +644,15 @@ function balanceOf(meter) {
   return meter.balance !== null && meter.balance !== undefined ? Number(meter.balance) : null;
 }
 function lowBalance(meter) { const b = balanceOf(meter); const th = (typeof isSharedView !== 'undefined' && isSharedView && currentView === 'meter') ? 0 : (meter.lowThreshold ?? state.settings.alertThreshold ?? LOW_BALANCE); return b !== null && b < th; }
-function median(arr) {
-  if (!arr.length) return 0;
-  const s = [...arr].sort((a, b) => a - b);
-  const m = Math.floor(s.length / 2);
-  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
-}
+/* DESCO "Avg. Daily Cost (7 Days)" = plain mean of the last 7 days: sum of the
+   cost of the 7 most recent days that have a portal reading, divided by 7.
+   Days the portal hasn't published yet (the "No reading" dots) are skipped —
+   counting them as ৳0 would drag the average down every time the portal lags. */
 function avgDailyCost(normalizedDays) {
-  const vals = normalizedDays.slice(-7).map(d => d.taka);
-  const nz = vals.filter(v => v > 0);
-  if (!nz.length) return null;
-  if (nz.length === 1) return Math.round(nz[0] / 7);
-  const med = median(nz);
-  const cap = Math.max(med * 3, 25);
-  const sum = vals.reduce((s, v) => s + Math.min(v || 0, cap), 0);
-  return Math.round(sum / 7);
+  const vals = normalizedDays.filter(d => !d.gap).slice(-7).map(d => Number(d.taka) || 0);
+  if (!vals.length) return null;
+  const sum = vals.reduce((s, v) => s + v, 0);
+  return Math.round(sum / Math.min(7, vals.length));
 }
 function nescoAvgDailyCost(history) {
   const rows = (history || []).map(r => {
@@ -1682,7 +1681,9 @@ function renderUsageCard(wrap, m, daily, monthly) {
     b.onclick = () => {
       if (_usage.metric === b.dataset.umetric) return;
       _usage.metric = b.dataset.umetric;
-      state.settings.usageMetric = _usage.metric; saveSettings();
+      /* usageV3 = "the user picked this metric on purpose" — it tells
+         normalizeUsageDefaults() apart from a stale pre-v859 cloud value. */
+      state.settings.usageMetric = _usage.metric; state.settings.usageV3 = 1; saveSettings();
       wrap.querySelectorAll('[data-umetric]').forEach(x => x.classList.toggle('active', x.dataset.umetric === _usage.metric));
       updateUsageView();
     };
@@ -2344,7 +2345,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.38'} (build ${'859'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.39'} (build ${'862'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
@@ -3026,6 +3027,7 @@ async function loadSettingsFromCloud() {
     const cloud = snap.val();
     if (cloud && typeof cloud === 'object') {
       state.settings = Object.assign({}, state.settings, cloud);
+      normalizeUsageDefaults();
       saveSettings();
     }
   } catch (e) {}
