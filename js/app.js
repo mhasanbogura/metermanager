@@ -2388,7 +2388,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.47'} (build ${'886'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.48'} (build ${'889'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
@@ -2435,11 +2435,11 @@ window._settingsDescoLogin = function() {
   let body = `<p class="body-text" style="margin-top:0">${esc(t('settings.desco_hint'))}</p>`;
   if (accounts.length) {
     body += `<div class="sett-section-card" style="margin-bottom:12px">` + accounts.map(a => `
-        <div class="sett-item" style="cursor:default">
+        <div class="sett-item" style="cursor:default;flex-wrap:wrap;gap:8px">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="opacity:.6"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/></svg>
-          <span style="flex:1">${esc(a.label || 'Account')}</span>
-          <button type="button" class="btn secondary sm" onclick="window._settingsDescoUse('${a.id}')">${esc(a.active ? t('settings.desco_reactivate') : t('settings.desco_use'))}</button>
-          <button type="button" class="btn danger sm" style="margin-left:6px" onclick="window._settingsDescoRemove('${a.id}')">${esc(t('btn.remove'))}</button>
+          <span style="flex:1;min-width:100px">${esc(a.label || 'Account')}</span>
+          <button type="button" class="btn secondary sm" onclick="window.location.href='https://prepaid.desco.org.bd/login'">${esc(a.active ? t('settings.desco_reactivate') : t('settings.desco_use'))}</button>
+          <button type="button" class="btn danger sm" onclick="window._settingsDescoRemove('${a.id}')">${esc(t('btn.remove'))}</button>
         </div>`).join('') + `
       </div>`;
   } else {
