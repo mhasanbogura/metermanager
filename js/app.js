@@ -105,7 +105,7 @@ const I18N = {
     'auth.forgot_title': 'Forgot Password', 'auth.forgot_hint': "We'll send you a reset link",
     'auth.send_reset': 'Send Reset Link', 'auth.fill_all': 'Fill all fields', 'auth.reset_sent': 'Reset link sent!',
     'settings.account': 'Account', 'settings.account_name': 'Name', 'settings.account_email': 'Email',
-    'settings.desco_login': 'DESCO Login', 'settings.desco_logout': 'Remove DESCO Account',
+    'settings.desco_login': 'DESCO Login', 'settings.desco_logout': 'Remove DESCO Account', 'settings.desco_web_hint': 'The DESCO portal blocks websites from reading live data, so logging in here cannot refresh this website. Use the Android app to log in — the website then shows your last synced balance.', 'settings.desco_open_portal': 'Open portal anyway',
     'settings.desco_hint': 'Portal sessions are saved on this device only.',
     'settings.desco_add_account': 'Add account', 'settings.desco_no_accounts': 'No DESCO account added yet.',
     'settings.desco_active': 'Active', 'settings.desco_use': 'Use',
@@ -218,7 +218,7 @@ const I18N = {
     'settings.account': 'অ্যাকাউন্ট', 'settings.account_name': 'নাম', 'settings.account_email': 'ইমেইল',
     'settings.sign_out': 'সাইন আউট', 'settings.delete_account': 'অ্যাকাউন্ট মুছে ফেলুন',
     'settings.reset_password': 'পাসওয়ার্ড রিসেট',
-    'settings.desco_login': 'DESCO লগইন',
+    'settings.desco_login': 'DESCO লগইন', 'settings.desco_web_hint': 'ডেসকো পোর্টাল ওয়েবসাইট থেকে লাইভ ডেটা আনা বন্ধ রেখেছে, তাই এখানে লগইন করলেও ডেটা রিফ্রেশ হবে না। অ্যান্ড্রয়েড অ্যাপে লগইন করুন — ওয়েবসাইটে তখন সর্বশেষ ব্যালেন্স দেখাবে।', 'settings.desco_open_portal': 'যেকোনোভাবে পোর্টাল খুলুন',
     'settings.desco_hint': 'পোর্টাল সেশন শুধু এই ডিভাইসে সংরক্ষিত থাকে।',
     'settings.desco_add_account': 'অ্যাকাউন্ট যোগ করুন', 'settings.desco_no_accounts': 'এখনো কোনো DESCO অ্যাকাউন্ট যোগ করা হয়নি।',
     'settings.desco_active': 'সক্রিয়', 'settings.desco_use': 'ব্যবহার করুন',
@@ -2121,7 +2121,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.32'} (build ${'841'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.33'} (build ${'844'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
@@ -2194,7 +2194,18 @@ window._settingsDescoAddAccount = function() {
       return;
     }
   } catch (e) {}
-  location.href = 'https://prepaid.desco.org.bd/'; /* plain web: log in on the portal */
+  /* Plain web: the portal blocks every website origin (CORS), so a login
+     here can never refresh live data — and navigating this tab away would
+     strand the user on the portal. Keep Meter Manager in place: explain,
+     offer the Android app (where login works natively), and only open the
+     portal in a separate tab if explicitly requested. */
+  openDialog(t('settings.desco_login'),
+    `<p class="body-text" style="margin-top:0">${esc(t('settings.desco_web_hint'))}</p>`,
+    [
+      { key: 'app', label: t('settings.get_app'), cls: '', fn: () => { closeDialog(); window.open(t('settings.android_app_url'), '_blank'); } },
+      { key: 'portal', label: t('settings.desco_open_portal'), cls: 'secondary', fn: () => { closeDialog(); window.open('https://prepaid.desco.org.bd/', '_blank'); } },
+      { key: 'close', label: t('btn.close'), cls: 'secondary', fn: closeDialog }
+    ]);
 };
 window._settingsDescoUse = function(id) {
   try { window.NescoBridge && window.NescoBridge.setDescoActive && window.NescoBridge.setDescoActive(id); } catch (e) {}
