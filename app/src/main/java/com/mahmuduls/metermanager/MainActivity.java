@@ -141,9 +141,10 @@ public class MainActivity extends Activity {
                         id = getSharedPreferences("MeterManager", MODE_PRIVATE).getLong("pendingDownloadId", -1);
                     }
                     if (id == pendingDownloadId && id > 0) {
-                        installApk(id);
-                        pendingDownloadId = -1;
-                        getSharedPreferences("MeterManager", MODE_PRIVATE).edit().remove("pendingDownloadId").apply();
+                        // Let getDownloadProgress reach 100% first via polling before triggering install
+                        // installApk(id);
+                        // pendingDownloadId = -1;
+                        // getSharedPreferences("MeterManager", MODE_PRIVATE).edit().remove("pendingDownloadId").apply();
                     }
                 }
             }
@@ -1790,7 +1791,7 @@ public class MainActivity extends Activity {
                 DownloadManager.Request request = new DownloadManager.Request(Uri.parse(urlStr));
                 request.setTitle("Meter Manager Update");
                 request.setDescription("Downloading latest version...");
-                request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+                request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE);
                 request.setDestinationInExternalFilesDir(MainActivity.this,
                     android.os.Environment.DIRECTORY_DOWNLOADS, safe);
                 DownloadManager dm = (DownloadManager) getSystemService(DOWNLOAD_SERVICE);
