@@ -1816,10 +1816,22 @@ function renderTotalUse(monthly, hist, balance) {
       const sd = new Date(earliest), ed = new Date();
       const daysDiff = Math.max(1, Math.round((ed - sd) / 864e5));
       const dailyT = consumedTaka / daysDiff;
+      // Sum daily consumption since the last month reset
+      const dailyDays = normalizeDaily(daily || []);
+      let totalUnit = 0;
+      let totalTaka = 0;
       const now = new Date();
-      const thisDays = now.getDate();
-      const thisMT = Math.round(dailyT * thisDays * 100) / 100;
-      const thisMonth = { taka: thisMT, unit: descoTakaToKwh(thisMT) };
+      const currentMonth = now.getMonth();
+      const currentYear = now.getFullYear();
+      
+      for (const d of dailyDays) {
+        const date = new Date(d.d);
+        if (date.getMonth() === currentMonth && date.getFullYear() === currentYear) {
+            totalUnit += d.unit;
+            totalTaka += d.taka;
+        }
+      }
+      const thisMonth = { taka: totalTaka, unit: totalUnit };
       return renderTotalUseCard(thisMonth, lastMonth);
     }
   }
@@ -2388,7 +2400,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.48'} (build ${'889'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.49'} (build ${'892'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
