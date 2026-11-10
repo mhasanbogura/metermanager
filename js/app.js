@@ -82,7 +82,7 @@ const I18N = {
     'settings.update.current': 'Current: {v} (build {b})', 'settings.update.download': 'Download & Install',
     'settings.update.no_new': 'You are using the latest version.', 'settings.update.downloading': 'Downloading update...',
     'settings.update.installed': 'Download complete. Tap Install on the system prompt to update.', 'settings.update.failed': 'Update failed: {e}',
-    'settings.update.checking': 'Checking Google Drive for updates...', 'settings.update.android_only': 'Updates are available in the Android app only.',
+    'settings.update.checking': 'Checking for Updates...', 'settings.update.android_only': 'Updates are available in the Android app only.',
     'help.q1': 'How do I add a meter?', 'help.a1': 'Open Home, tap Add meter, choose DESCO, then enter your DESCO prepaid account number (8 digits) or meter number (12 digits). If it exists in the DESCO database, its info will load.',
     'help.q2': 'Why does it say "Account No. does not exist"?', 'help.a2': 'The number was not found in the official DESCO prepaid database. Check the number printed on your meter, bill or receipt and try again.',
     'help.q3': 'Is my data safe?', 'help.a3': 'Yes. Your meter numbers stay in your browser only. All meter data is fetched live from the official DESCO portal and is never stored by this app.',
@@ -2354,7 +2354,7 @@ function renderSettings() {
       <div class="sett-section-title">MORE</div>
       <div class="sett-section-card">
         <div class="sett-item" id="btnUpdateApp" onclick="window.onForcedUpdateClick()">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="opacity:.6"><path d="M17.65 6.35A7.95 7.95 0 0 0 12 4a8 8 0 1 0 7.73 10h-2.08A6 6 0 1 1 12 6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="opacity:.6"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
           <span style="flex:1">${esc(t('settings.update.title'))}</span>
           <svg class="sett-chevron" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
         </div>
@@ -2383,7 +2383,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.65'} (build ${'940'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.66'} (build ${'943'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
