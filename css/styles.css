@@ -367,29 +367,31 @@ table.list.hist tr:last-child td { border-bottom: 1px solid var(--border); }
 }
 .toggle input:checked + .toggle-slider { background: var(--primary); }
 .toggle input:checked + .toggle-slider::before { transform: translateX(20px); }
+.toggle .toggle-ico {
+  position: absolute; top: 50%; transform: translateY(-50%); z-index: 1;
+  pointer-events: none; display: flex; align-items: center; justify-content: center;
+}
+.toggle .toggle-ico-off { right: 5px; }
+.toggle .toggle-ico-on { left: 5px; display: none; }
+.toggle input:checked ~ .toggle-ico-off { display: none; }
+.toggle input:checked ~ .toggle-ico-on { display: flex; }
 .lang-toggle {
-  display: inline-flex; background: var(--surface-2); border-radius: 30px;
-  border: 1px solid var(--border); cursor: pointer; padding: 3px; gap: 2px;
+  position: relative; display: inline-flex; align-items: center; justify-content: center;
+  width: 46px; height: 26px; flex-shrink: 0; cursor: pointer;
+  background: #ccc; border-radius: 26px;
+  overflow: hidden;
 }
-.lang-toggle .lt-slider { display: none; }
-.lang-toggle .lt-label {
-  padding: 6px 18px; font-size: 13px; font-weight: 700;
-  color: var(--text-2); white-space: nowrap; border-radius: 30px;
-  display: flex; align-items: center; justify-content: center; flex: 1;
-  transition: background .2s, color .2s;
+.lang-toggle .lt-knob {
+  position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%;
+  background: #fff; transition: transform .25s;
 }
-.lang-toggle .lt-label.active {
-  background: #4a4a4a; color: #fff;
-  box-shadow: 0 1px 4px rgba(0,0,0,.25);
+.lang-toggle[data-lang="en"] .lt-knob { transform: translateX(20px); }
+.lang-toggle .lt-text {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  font-size: 10.5px; font-weight: 700; color: #444; white-space: nowrap;
 }
-[data-theme="dark"] .lang-toggle .lt-label.active,
-[data-theme="oled"] .lang-toggle .lt-label.active {
-  background: #d4d4d8; color: #111;
-}
-.lang-toggle .lt-flag {
-  width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-  font-size: 14px; line-height: 1;
-}
+.lang-toggle[data-lang="bn"] .lt-text { right: 6px; }
+.lang-toggle[data-lang="en"] .lt-text { left: 6px; }
 .brand-sub { font-size: 10px; color: var(--text-2); margin-top: -2px; }
 .card {
   background: var(--surface-2); border: 1.5px solid var(--card-border); border-radius: 16px;
