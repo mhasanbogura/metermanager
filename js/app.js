@@ -2382,7 +2382,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.69'} (build ${'950'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.70'} (build ${'953'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
@@ -2653,12 +2653,12 @@ function showForcedUpdatePopup(info) {
         btn.style.backgroundColor = '#2563eb';
         btn.style.color = '#ffffff';
         btn.style.border = 'none';
-        btn.textContent = 'Downloading...';
+        btn.textContent = 'Downloading... 0%';
         
         // Start download and pass a progress callback
         startUpdateDownloadWithProgress(info, (percent) => {
           if (percent < 100) {
-            btn.textContent = 'Downloading...';
+            btn.textContent = 'Downloading... ' + percent + '%';
           } else {
             btn.textContent = 'Installing...';
           }
@@ -2701,7 +2701,7 @@ function startUpdateDownloadWithProgress(info, progressCb) {
          clearInterval(checkProgress);
          progressCb(100); // Simulate install transition
       }
-    }, 1000);
+    }, 500);
     
   } else {
     try { location.href = info.downloadUrl; } catch (e) {}

@@ -8,3 +8,75 @@ buildscript {
         classpath 'com.google.gms:google-services:4.4.0'
     }
 }
+
+// ---------------------------------------------------------------------------
+// Local preview server for the web app (index.html, css/, js/).
+//   gradlew preview                    -> http://localhost:1002 (opens browser)
+//   gradlew preview -Pport=9000        -> use another port
+//   gradlew assembleDebug preview      -> build first, then serve
+// Files are read from disk on every request with caching disabled, so edits
+// and rebuilds show up on browser refresh - no restart needed for changes.
+// Ctrl+C stops the server.
+// ---------------------------------------------------------------------------
+task preview {
+    group = 'verification'
+    description = 'Serve the web app locally so changes can be viewed in a browser.'
+    doLast {
+        def root = rootDir.canonicalFile
+        def port = (project.findProperty('port') ?: '1002') as int
+        def mime = [
+            'html': 'text/html; charset=utf-8', 'js': 'text/javascript; charset=utf-8',
+            'css': 'text/css; charset=utf-8', 'json': 'application/json; charset=utf-8',
+            'svg': 'image/svg+xml', 'png': 'image/png', 'jpg': 'image/jpeg',
+            'jpeg': 'image/jpeg', 'gif': 'image/gif', 'webp': 'image/webp',
+            'ico': 'image/x-icon', 'woff': 'font/woff', 'woff2': 'font/woff2',
+            'txt': 'text/plain; charset=utf-8', 'xml': 'application/xml',
+        ]
+        com.sun.net.httpserver.HttpServer server
+        try {
+            server = com.sun.net.httpserver.HttpServer.create(new InetSocketAddress('127.0.0.1', port), 0)
+        } catch (IOException e) {
+            throw new GradleException("Preview port ${port} is already in use - stop the other preview server first.")
+        }
+        def factory = { Runnable r -> def t = new Thread(r); t.daemon = true; t } as java.util.concurrent.ThreadFactory
+        server.executor = java.util.concurrent.Executors.newCachedThreadPool(factory)
+        server.createContext('/', { com.sun.net.httpserver.HttpExchange ex ->
+            def send = { int code, byte[] body, String type ->
+                ex.responseHeaders.set('Content-Type', type)
+                ex.responseHeaders.set('Cache-Control', 'no-store')
+                ex.sendResponseHeaders(code, body.length)
+                def out = ex.responseBody
+                try { out.write(body) } finally { out.close() }
+            }
+            try {
+                def path = URLDecoder.decode(ex.requestURI.path, 'UTF-8')
+                if (path == '/' || path.endsWith('/')) path += 'index.html'
+                def f = new File(root, path).canonicalFile
+                if (f.path != root.path && !f.path.startsWith(root.path + File.separator)) {
+                    send 403, 'Forbidden'.getBytes('UTF-8'), 'text/plain; charset=utf-8'
+                } else if (!f.isFile()) {
+                    send 404, 'Not found'.getBytes('UTF-8'), 'text/plain; charset=utf-8'
+                } else {
+                    def ext = f.name.contains('.') ? f.name.substring(f.name.lastIndexOf('.') + 1).toLowerCase() : ''
+                    send 200, f.bytes, mime.getOrDefault(ext, 'application/octet-stream')
+                }
+            } catch (Exception e) {
+                try { send 500, 'Error'.getBytes('UTF-8'), 'text/plain; charset=utf-8' } catch (ignored) { }
+            }
+        } as com.sun.net.httpserver.HttpHandler)
+        server.start()
+        def url = "http://localhost:${port}/index.html"
+        println "Preview server running: ${url}   (Ctrl+C to stop)"
+        try {
+            java.awt.Desktop.desktop.browse(new URI(url))
+        } catch (Throwable ignored) { }
+        try {
+            while (!Thread.currentThread().isInterrupted()) Thread.sleep(500)
+        } catch (InterruptedException ignored) {
+            Thread.currentThread().interrupt()
+        } finally {
+            server.stop(0)
+            println 'Preview server stopped.'
+        }
+    }
+}
