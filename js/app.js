@@ -2247,8 +2247,9 @@ function renderSettings() {
       </div>
     </div>` : '';
 
-  /* DESCO portal sessions are stored natively (SharedPreferences), never in
-     Firebase — only the account list (id/label) is read here for the UI. */
+  /* DESCO portal sessions are stored natively (SharedPreferences) and
+     backed up to Firebase (users/{uid}/desco) — only the account list
+     (id/label) is read here for the UI. */
   let descoCount = 0;
   try {
     if (window.NescoBridge && typeof window.NescoBridge.getDescoAccounts === 'function') {
@@ -2382,7 +2383,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.71'} (build ${'956'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.72'} (build ${'959'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
@@ -2414,7 +2415,8 @@ function renderSettings() {
 function syncSettingsUi() {
 }
 /* ---------- DESCO portal accounts ----------
-   Session cookies live natively in SharedPreferences (never Firebase/cloud).
+   Session cookies live natively in SharedPreferences (Firebase keeps only a
+   backup copy under users/{uid}/desco, restored on boot when it's newer).
    This popup lists saved accounts with per-account Use/Remove + Add account. */
 function descoAccountsList() {
   try {
@@ -2438,6 +2440,7 @@ window._settingsDescoAddAccount = function() {
 };
 window._settingsDescoUse = function(id) {
   try { window.NescoBridge && window.NescoBridge.setDescoActive && window.NescoBridge.setDescoActive(id); } catch (e) {}
+  saveDescoSessionToCloud();
   window._settingsDescoLogin();
   toast(t('settings.desco_switched'));
 };
@@ -2447,6 +2450,7 @@ window._settingsDescoRemove = function(id) {
     { key: 'remove', label: t('btn.remove'), cls: 'danger', fn: () => {
         closeDialog();
         try { window.NescoBridge && window.NescoBridge.removeDescoAccount && window.NescoBridge.removeDescoAccount(id); } catch (e) {}
+        saveDescoSessionToCloud();
         toast(t('settings.desco_removed'));
         if (typeof currentView !== 'undefined' && currentView === 'settings') renderSettings();
       } }
@@ -2456,6 +2460,7 @@ window._settingsDescoRemove = function(id) {
 window.__descoAccountAdded = function(info) {
   toast(t('settings.desco_added', { n: (info && info.label) || '' }));
   if (typeof currentView !== 'undefined' && currentView === 'settings') renderSettings();
+  saveDescoSessionToCloud(); /* back the fresh session up to Firebase */
 };
 window._settingsSignOut = function() {
   openDialog(t('settings.sign_out'), '<p class="body-text">Sign out from your account?</p>', [
@@ -3044,6 +3049,49 @@ async function saveSettingsToCloud() {
   } catch (e) {}
 }
 
+/* ================= DESCO session cloud backup =================
+   The session is still USED natively (SharedPreferences + cookie jar);
+   Firebase keeps a backup copy under users/{uid}/desco so a refresh,
+   reinstall, or new device restores it automatically. Every local change
+   pushes, boot pulls — newest updatedAt wins. An empty cloud copy is
+   never imported (importDescoState also refuses empty lists), so a
+   missing backup can never wipe a working local session. Android only:
+   the session originates in the native WebView and the web build can't
+   reach the DESCO API anyway (portal CORS). */
+function descoBridge() {
+  return (window.NescoBridge &&
+    typeof window.NescoBridge.exportDescoState === 'function' &&
+    typeof window.NescoBridge.importDescoState === 'function') ? window.NescoBridge : null;
+}
+async function saveDescoSessionToCloud() {
+  const b = descoBridge();
+  if (!b || !currentUser) return;
+  try {
+    const local = JSON.parse(b.exportDescoState() || '{}');
+    await db.ref('users/' + currentUser.uid + '/desco').set({
+      accounts: local.accounts || [],
+      activeId: local.activeId || '',
+      updatedAt: local.updatedAt || Date.now()
+    });
+  } catch (e) { console.warn('DESCO cloud save failed:', e); }
+}
+async function loadDescoSessionFromCloud() {
+  const b = descoBridge();
+  if (!b || !currentUser) return;
+  try {
+    const local = JSON.parse(b.exportDescoState() || '{}');
+    const localAt = local.updatedAt || 0;
+    const snap = await db.ref('users/' + currentUser.uid + '/desco').once('value');
+    const cloud = snap.val();
+    const cloudAt = (cloud && cloud.updatedAt) || 0;
+    if (cloudAt > localAt) {
+      b.importDescoState(JSON.stringify(cloud));
+    } else if (localAt > cloudAt) {
+      await saveDescoSessionToCloud(); /* local is newer — refresh the backup */
+    }
+  } catch (e) { console.warn('DESCO cloud load failed:', e); }
+}
+
 /* ================= PWA ================= */
 window.__pp = { get state() { return state; }, refreshMeter, probeSystemType, apiGet, t, DESCO };
 function registerSw() {
@@ -3098,7 +3146,7 @@ async function boot() {
       showView('home');
       renderHome();
       hideSplash();
-      await Promise.all([loadFromCloud(), loadSettingsFromCloud()]);
+      await Promise.all([loadFromCloud(), loadSettingsFromCloud(), loadDescoSessionFromCloud()]);
       applyTheme();
       applyLang();
       state.meters.forEach(m => { m.loading = true; m.err = null; });

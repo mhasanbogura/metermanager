@@ -888,6 +888,61 @@ public class MainActivity extends Activity {
             }
         }
 
+        /** Full DESCO state incl. session cookies — ONLY for the Firebase
+            backup sync (pushDescoToCloud). Never render this in the UI. */
+        @JavascriptInterface
+        public String exportDescoState() {
+            try {
+                SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+                JSONObject out = new JSONObject();
+                out.put("accounts", loadDescoAccounts(prefs));
+                out.put("activeId", prefs.getString("descoActiveId", ""));
+                out.put("updatedAt", prefs.getLong("descoUpdatedAt", 0L));
+                return out.toString();
+            } catch (Exception e) {
+                return "{}";
+            }
+        }
+
+        /** Restores a DESCO state backed up in Firebase. Applies only a
+            non-empty account list, so a missing or blank cloud copy can never
+            wipe a working local session. */
+        @JavascriptInterface
+        public void importDescoState(String json) {
+            try {
+                JSONObject in = new JSONObject(json);
+                JSONArray arr = in.optJSONArray("accounts");
+                if (arr == null) return;
+                JSONArray clean = new JSONArray();
+                for (int i = 0; i < arr.length(); i++) {
+                    JSONObject o = arr.getJSONObject(i);
+                    if (o.optString("cookies").contains("DESCO_SESSION=")) clean.put(o);
+                }
+                if (clean.length() == 0) return;
+                String activeId = in.optString("activeId", "");
+                boolean found = activeId.isEmpty();
+                for (int i = 0; i < clean.length() && !found; i++) {
+                    found = activeId.equals(clean.getJSONObject(i).optString("id"));
+                }
+                if (!found) activeId = clean.getJSONObject(clean.length() - 1).optString("id");
+                String activeCookies = "";
+                for (int i = 0; i < clean.length(); i++) {
+                    JSONObject o = clean.getJSONObject(i);
+                    if (activeId.equals(o.optString("id"))) { activeCookies = o.optString("cookies"); break; }
+                }
+                getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit()
+                    .putString("descoAccounts", clean.toString())
+                    .putString("descoActiveId", activeId)
+                    .putString("descoCookies", activeCookies)
+                    .putLong("descoUpdatedAt", in.optLong("updatedAt", 0L))
+                    .apply();
+                applyCookiesToJar(activeCookies);
+                Log.i(TAG, "desco session restored from cloud (" + clean.length() + " account(s))");
+            } catch (Exception e) {
+                Log.w(TAG, "importDescoState failed", e);
+            }
+        }
+
         /** Opens the official portal so the user can sign in to another account;
             onPageFinished captures the session and stores it as a new account. */
         @JavascriptInterface
@@ -912,7 +967,8 @@ public class MainActivity extends Activity {
                     if (!id.equals(o.optString("id"))) out.put(o);
                 }
                 String activeId = prefs.getString("descoActiveId", "");
-                SharedPreferences.Editor ed = prefs.edit().putString("descoAccounts", out.toString());
+                SharedPreferences.Editor ed = prefs.edit().putString("descoAccounts", out.toString())
+                    .putLong("descoUpdatedAt", System.currentTimeMillis());
                 if (id.equals(activeId)) {
                     if (out.length() > 0) {
                         JSONObject next = out.getJSONObject(out.length() - 1);
@@ -945,7 +1001,8 @@ public class MainActivity extends Activity {
                 for (int i = 0; i < arr.length(); i++) {
                     JSONObject o = arr.getJSONObject(i);
                     if (id.equals(o.optString("id"))) {
-                        prefs.edit().putString("descoActiveId", id).apply();
+                        prefs.edit().putString("descoActiveId", id)
+                            .putLong("descoUpdatedAt", System.currentTimeMillis()).apply();
                         applyCookiesToJar(o.optString("cookies"));
                         return;
                     }
@@ -1390,7 +1447,9 @@ public class MainActivity extends Activity {
                     if (id.equals(o.optString("id"))) { displayLabel = o.optString("label"); break; }
                 }
             }
-            prefs.edit().putString("descoAccounts", arr.toString()).putString("descoActiveId", id).apply();
+            prefs.edit().putString("descoAccounts", arr.toString())
+                .putString("descoActiveId", id)
+                .putLong("descoUpdatedAt", System.currentTimeMillis()).apply();
             JSONObject notify = new JSONObject();
             notify.put("label", displayLabel == null ? "" : displayLabel);
             notify.put("count", arr.length());
