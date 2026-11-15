@@ -111,11 +111,11 @@ const I18N = {
     'auth.send_reset': 'Send Reset Link', 'auth.fill_all': 'Fill all fields', 'auth.reset_sent': 'Reset link sent!',
     'settings.account': 'Account', 'settings.account_name': 'Name', 'settings.account_email': 'Email',
     'settings.desco_login': 'DESCO Login', 'settings.desco_logout': 'Remove DESCO Account', 'settings.desco_web_hint': 'The DESCO portal blocks websites from reading live data, so logging in here cannot refresh this website. Use the Android app to log in — the website then shows your last synced balance.', 'settings.desco_open_portal': 'Open portal anyway',
-    'settings.desco_hint': 'Portal sessions are saved on this device only.',
+    'settings.desco_hint': 'Your DESCO login is backed up to your account and renewed automatically — the app signs back in by itself when the session expires.',
     'settings.desco_add_account': 'Add account', 'settings.desco_no_accounts': 'No DESCO account added yet.',
     'settings.desco_active': 'Active',
     'settings.desco_reactivate': 'Reactivate', 'settings.desco_use': 'Use',
-    'settings.desco_remove_confirm': 'Remove this DESCO account? Its saved session will be deleted from this device.',
+    'settings.desco_remove_confirm': 'Remove this DESCO account? Its saved session and login will be deleted.',
     'settings.desco_removed': 'DESCO account removed', 'settings.desco_switched': 'DESCO account switched', 'settings.desco_reactivating': 'Reactivating DESCO account...', 'settings.desco_reactivating': 'Reactivating DESCO account…',
     'settings.desco_added': 'DESCO account added: {n}',
     'settings.sign_out': 'Sign Out', 'settings.delete_account': 'Delete Account',
@@ -230,12 +230,12 @@ const I18N = {
     'settings.sign_out': 'সাইন আউট', 'settings.delete_account': 'অ্যাকাউন্ট মুছে ফেলুন',
     'settings.reset_password': 'পাসওয়ার্ড রিসেট',
     'settings.desco_login': 'DESCO লগইন', 'settings.desco_web_hint': 'ডেসকো পোর্টাল ওয়েবসাইট থেকে লাইভ ডেটা আনা বন্ধ রেখেছে, তাই এখানে লগইন করলেও ডেটা রিফ্রেশ হবে না। অ্যান্ড্রয়েড অ্যাপে লগইন করুন — ওয়েবসাইটে তখন সর্বশেষ ব্যালেন্স দেখাবে।', 'settings.desco_open_portal': 'যেকোনোভাবে পোর্টাল খুলুন',
-    'settings.desco_hint': 'পোর্টাল সেশন শুধু এই ডিভাইসে সংরক্ষিত থাকে।',
+    'settings.desco_hint': 'আপনার DESCO লগইন অ্যাকাউন্টে ব্যাকআপ থাকে এবং নিজে থেকেই নবায়ন হয় — সেশনের মেয়াদ শেষ হলে অ্যাপ নিজে থেকেই আবার লগইন করে।',
     'settings.desco_add_account': 'অ্যাকাউন্ট যোগ করুন', 'settings.desco_no_accounts': 'এখনো কোনো DESCO অ্যাকাউন্ট যোগ করা হয়নি।',
     'settings.desco_active': 'সক্রিয়',
     'settings.desco_reactivate': 'পুনরায় সক্রিয়',
     'settings.desco_reactivate': 'রিঅ্যাক্টিভেট', 'settings.desco_use': 'ব্যবহার করুন',
-    'settings.desco_remove_confirm': 'এই DESCO অ্যাকাউন্টটি মুছে ফেলবেন? এর সংরক্ষিত সেশন এই ডিভাইস থেকে মুছে যাবে।',
+    'settings.desco_remove_confirm': 'এই DESCO অ্যাকাউন্টটি মুছে ফেলবেন? এর সংরক্ষিত সেশন ও লগইন মুছে যাবে।',
     'settings.desco_removed': 'DESCO অ্যাকাউন্ট মুছে ফেলা হয়েছে', 'settings.desco_switched': 'DESCO অ্যাকাউন্ট পরিবর্তন হয়েছে', 'settings.desco_reactivating': 'DESCO অ্যাকাউন্ট পুনরায় সক্রিয় করা হচ্ছে...',
     'settings.desco_added': 'DESCO অ্যাকাউন্ট যোগ হয়েছে: {n}',
     'settings.cloud_sync': 'ক্লাউড সিঙ্ক', 'settings.cloud_synced': 'মিটার আপনার অ্যাকাউন্টে সিঙ্ক হয়েছে',
@@ -2383,7 +2383,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.72'} (build ${'959'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.73'} (build ${'962'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
@@ -2415,9 +2415,13 @@ function renderSettings() {
 function syncSettingsUi() {
 }
 /* ---------- DESCO portal accounts ----------
-   Session cookies live natively in SharedPreferences (Firebase keeps only a
-   backup copy under users/{uid}/desco, restored on boot when it's newer).
-   This popup lists saved accounts with per-account Use/Remove + Add account. */
+   Session cookies AND the portal credentials live natively in
+   SharedPreferences (Firebase keeps only a backup copy under users/{uid}/
+   desco, restored on boot when it's newer). When a session expires, the
+   native side re-logs in with those credentials in the background — the
+   401 retry happens inside descoApiGetAsync/descoApiPostAsync, so callers
+   here never see it. This popup lists saved accounts with per-account
+   Use/Remove + Add account. */
 function descoAccountsList() {
   try {
     if (window.NescoBridge && typeof window.NescoBridge.getDescoAccounts === 'function') {
@@ -3052,12 +3056,14 @@ async function saveSettingsToCloud() {
 /* ================= DESCO session cloud backup =================
    The session is still USED natively (SharedPreferences + cookie jar);
    Firebase keeps a backup copy under users/{uid}/desco so a refresh,
-   reinstall, or new device restores it automatically. Every local change
-   pushes, boot pulls — newest updatedAt wins. An empty cloud copy is
-   never imported (importDescoState also refuses empty lists), so a
-   missing backup can never wipe a working local session. Android only:
-   the session originates in the native WebView and the web build can't
-   reach the DESCO API anyway (portal CORS). */
+   reinstall, or new device restores it automatically. The saved portal
+   credentials ride along inside each account, which is what lets the app
+   sign back in by itself whenever DESCO expires the session server-side.
+   Every local change pushes, boot pulls — newest updatedAt wins. An empty
+   cloud copy is never imported (importDescoState also refuses empty
+   lists), so a missing backup can never wipe a working local session.
+   Android only: the session originates in the native WebView and the web
+   build can't reach the DESCO API anyway (portal CORS). */
 function descoBridge() {
   return (window.NescoBridge &&
     typeof window.NescoBridge.exportDescoState === 'function' &&

@@ -37,6 +37,9 @@ import java.net.URL;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -189,6 +192,9 @@ public class MainActivity extends Activity {
                 if (url != null && url.startsWith(DESCO_PORTAL)) {
                     // Trigger cookie capture after user logs in on the DESCO portal
                     view.evaluateJavascript("NescoBridge.saveDescoCookies();", null);
+                    // Watch POST /auth/login so the credentials can be stored
+                    // for automatic background re-logins later.
+                    injectDescoCredHook(view);
                     // Show back button while on portal pages during add-account flow
                     injectBackButton();
                     // "Add account" flow: a fresh DESCO_SESSION means login done.
@@ -298,6 +304,38 @@ public class MainActivity extends Activity {
         webView.evaluateJavascript(js, null);
     }
 
+    /** Wraps window.fetch on DESCO portal pages so the credentials submitted
+        to POST /auth/login are handed to the app. The portal SPA reads the
+        fields itself (React), so the only reliable place to see the real
+        username/password pair is the request body. Captured values stay in
+        pendingDescoUser/pendingDescoPass and are only persisted by
+        finishDescoAdd — after the resulting session has been verified. */
+    private void injectDescoCredHook(WebView view) {
+        String js =
+            "(function(){" +
+            "  if(window.__mm_cred_hook) return;" +
+            "  window.__mm_cred_hook=1;" +
+            "  var origFetch=window.fetch;" +
+            "  if(!origFetch) return;" +
+            "  window.fetch=function(){" +
+            "    try{" +
+            "      var a=arguments[0];" +
+            "      var u=(typeof a==='string')?a:((a&&a.url)||'');" +
+            "      var init=arguments[1]||{};" +
+            "      if(u.indexOf('/auth/login')>=0 && init.body &&" +
+            "         window.NescoBridge && window.NescoBridge.saveDescoCredentials){" +
+            "        var b=JSON.parse(init.body);" +
+            "        if(b && b.username){" +
+            "          window.NescoBridge.saveDescoCredentials(String(b.username),String(b.password||''));" +
+            "        }" +
+            "      }" +
+            "    }catch(e){}" +
+            "    return origFetch.apply(this,arguments);" +
+            "  };" +
+            "})();";
+        view.evaluateJavascript(js, null);
+    }
+
     @Override
     public void onBackPressed() {
         String curUrl = webView.getUrl();
@@ -305,6 +343,8 @@ public class MainActivity extends Activity {
             // User backed out of the "Add account" portal login — return to the
             // app; onPageFinished restores the active account's cookies.
             addingDescoAccount = false;
+            pendingDescoUser = null;
+            pendingDescoPass = null;
             webView.loadUrl(WEB_URL);
             return;
         }
@@ -848,6 +888,18 @@ public class MainActivity extends Activity {
             }
         }
 
+        /** Credentials the portal login form just submitted (captured by the
+            fetch hook injected into portal pages). Kept in memory only until
+            maybeFinishDescoAdd verifies the session — then they are written
+            onto the account and used for background re-logins. */
+        @JavascriptInterface
+        public void saveDescoCredentials(String user, String pass) {
+            if (user == null || user.trim().isEmpty()) return;
+            pendingDescoUser = user.trim();
+            pendingDescoPass = pass == null ? "" : pass;
+            Log.i(TAG, "desco login credentials captured for background re-login");
+        }
+
         @JavascriptInterface
         public String getDescoCookies() {
             SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
@@ -888,8 +940,11 @@ public class MainActivity extends Activity {
             }
         }
 
-        /** Full DESCO state incl. session cookies — ONLY for the Firebase
-            backup sync (pushDescoToCloud). Never render this in the UI. */
+        /** Full DESCO state incl. session cookies AND the saved portal
+            credentials — ONLY for the Firebase backup sync (pushDescoToCloud /
+            saveDescoSessionToCloud); the credentials are what let the app
+            re-login in the background after DESCO expires the session.
+            Never render this in the UI (getDescoAccounts is the safe view). */
         @JavascriptInterface
         public String exportDescoState() {
             try {
@@ -951,6 +1006,8 @@ public class MainActivity extends Activity {
                 descoFlowGen++;          // invalidate probes from any earlier attempt
                 descoValidating = false;
                 addingDescoAccount = true;
+                pendingDescoUser = null; // fresh attempt — forget any stale capture
+                pendingDescoPass = null;
                 clearPortalCookies(); // fresh login form, not an existing session
                 webView.loadUrl(DESCO_PORTAL + "/");
             });
@@ -989,6 +1046,8 @@ public class MainActivity extends Activity {
         public void closeDescoLogin() {
             runOnUiThread(() -> {
                 addingDescoAccount = false;
+                pendingDescoUser = null; // abandoned before verification
+                pendingDescoPass = null;
                 webView.loadUrl(WEB_URL);
             });
         }
@@ -1013,13 +1072,23 @@ public class MainActivity extends Activity {
         }
 
         /** CORS-free DESCO API GET: runs on the bridge thread, replies through
-            window.__descoApiResult(cbId, {ok,status,body}). */
+            window.__descoApiResult(cbId, {ok,status,body}). An expired session
+            (401) is revived once in the background with the saved credentials
+            before the request is retried, so callers never see the expiry. */
         @JavascriptInterface
         public void descoApiGetAsync(final String url, final String cbId) {
             new Thread(() -> {
                 String payload;
                 try {
+                    long gen = descoSessionGen;
                     HttpsResult r = descoHttpGet(url, getDescoCookies());
+                    if (r.code == 401 && url.indexOf("/auth/") < 0) {
+                        // Expired session: revive it in the background — or just
+                        // retry when another refresh already re-logged in.
+                        if (descoSessionGen != gen || descoRelogin(gen)) {
+                            r = descoHttpGet(url, getDescoCookies());
+                        }
+                    }
                     payload = descoPayload(r.code, r.body);
                 } catch (Exception e) {
                     payload = "{\"ok\":false,\"status\":0,\"body\":\"\"}";
@@ -1035,7 +1104,13 @@ public class MainActivity extends Activity {
             new Thread(() -> {
                 String payload;
                 try {
+                    long gen = descoSessionGen;
                     HttpsResult r = descoHttpPost(url, body, getDescoCookies());
+                    if (r.code == 401 && url.indexOf("/auth/") < 0) {
+                        if (descoSessionGen != gen || descoRelogin(gen)) {
+                            r = descoHttpPost(url, body, getDescoCookies());
+                        }
+                    }
                     payload = descoPayload(r.code, r.body);
                 } catch (Exception e) {
                     payload = "{\"ok\":false,\"status\":0,\"body\":\"\"}";
@@ -1255,6 +1330,20 @@ public class MainActivity extends Activity {
     private volatile int descoFlowGen = 0;
     /* JSON handed to JS (__descoAccountAdded) once the app page is back. */
     private volatile String pendingDescoNotify = null;
+    /* Credentials sniffed from the portal's POST /auth/login while the user
+       signs in. Saved onto the account only when that login is verified, so a
+       typed-but-failed attempt never gets stored. */
+    private volatile String pendingDescoUser = null;
+    private volatile String pendingDescoPass = null;
+    /* Single-flight lock + backoff clock for the background re-login, so a
+       burst of expired-session 401s (parallel meter refreshes) produces
+       exactly one login attempt — repeated failures can't lock the account. */
+    private final Object descoLoginLock = new Object();
+    private volatile long descoLastLoginAt = 0L;
+    /* Bumped whenever a background re-login succeeds: a request that failed
+       with 401 before the bump can simply retry instead of joining the
+       (serialized) login queue. */
+    private volatile long descoSessionGen = 0L;
 
     /* ---------- multi-account DESCO login ---------- */
 
@@ -1427,28 +1516,43 @@ public class MainActivity extends Activity {
         try {
             SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
             JSONArray arr = loadDescoAccounts(prefs);
-            String id = null;
-            for (int i = 0; i < arr.length(); i++) {
+            /* Same session => same account; otherwise the same DESCO account
+               number logging in again (after expiry) refreshes its existing
+               entry instead of piling up duplicates. */
+            JSONObject entry = null;
+            for (int i = 0; i < arr.length() && entry == null; i++) {
                 JSONObject o = arr.getJSONObject(i);
-                if (cookies.equals(o.optString("cookies"))) { id = o.optString("id"); break; }
+                if (cookies.equals(o.optString("cookies"))) entry = o;
             }
-            if (id == null) {
-                id = "d" + System.currentTimeMillis();
-                if (displayLabel == null || displayLabel.isEmpty()) displayLabel = "Account " + (arr.length() + 1);
-                JSONObject o = new JSONObject();
-                o.put("id", id);
-                o.put("label", displayLabel);
-                o.put("addedAt", System.currentTimeMillis());
-                o.put("cookies", cookies);
-                arr.put(o);
-            } else if (displayLabel == null || displayLabel.isEmpty()) {
-                for (int i = 0; i < arr.length(); i++) {
+            if (entry == null && displayLabel != null && displayLabel.matches("\\d{8}")) {
+                for (int i = 0; i < arr.length() && entry == null; i++) {
                     JSONObject o = arr.getJSONObject(i);
-                    if (id.equals(o.optString("id"))) { displayLabel = o.optString("label"); break; }
+                    if (displayLabel.equals(o.optString("label"))) entry = o;
                 }
             }
+            if (entry == null) {
+                if (displayLabel == null || displayLabel.isEmpty()) displayLabel = "Account " + (arr.length() + 1);
+                entry = new JSONObject();
+                entry.put("id", "d" + System.currentTimeMillis());
+                entry.put("label", displayLabel);
+                entry.put("addedAt", System.currentTimeMillis());
+                arr.put(entry);
+            } else if (displayLabel == null || displayLabel.isEmpty()) {
+                displayLabel = entry.optString("label");
+            }
+            entry.put("cookies", cookies); // fresh session (new or re-login)
+            /* Keep the credentials the portal login just used, so the app can
+               sign back in by itself whenever the session expires. */
+            String user = pendingDescoUser;
+            if (user != null && !user.isEmpty()) {
+                entry.put("username", user);
+                entry.put("password", pendingDescoPass == null ? "" : pendingDescoPass);
+                Log.i(TAG, "desco credentials saved for account " + entry.optString("id"));
+            }
+            pendingDescoUser = null;
+            pendingDescoPass = null;
             prefs.edit().putString("descoAccounts", arr.toString())
-                .putString("descoActiveId", id)
+                .putString("descoActiveId", entry.optString("id"))
                 .putLong("descoUpdatedAt", System.currentTimeMillis()).apply();
             JSONObject notify = new JSONObject();
             notify.put("label", displayLabel == null ? "" : displayLabel);
@@ -1474,6 +1578,7 @@ public class MainActivity extends Activity {
         conn.setInstanceFollowRedirects(false);
 
         int code = conn.getResponseCode();
+        String setCookie = setCookieOf(conn);
         InputStream in = code >= 400 ? conn.getErrorStream() : conn.getInputStream();
         StringBuilder sb = new StringBuilder();
         if (in != null) {
@@ -1483,7 +1588,24 @@ public class MainActivity extends Activity {
             br.close();
         }
         conn.disconnect();
-        return new HttpsResult(code, sb.toString(), null);
+        return new HttpsResult(code, sb.toString(), setCookie);
+    }
+
+    /** Every Set-Cookie value of a response, one per line (null when none). */
+    private static String setCookieOf(HttpURLConnection conn) {
+        try {
+            List<String> vals = conn.getHeaderFields().get("Set-Cookie");
+            if (vals == null || vals.isEmpty()) return null;
+            StringBuilder sb = new StringBuilder();
+            for (String v : vals) {
+                if (v == null) continue;
+                if (sb.length() > 0) sb.append('\n');
+                sb.append(v);
+            }
+            return sb.toString();
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     /** POST for the DESCO API: JSON body plus the X-XSRF-TOKEN header the
@@ -1508,6 +1630,7 @@ public class MainActivity extends Activity {
         try (OutputStream os = conn.getOutputStream()) { os.write(data); }
 
         int code = conn.getResponseCode();
+        String setCookie = setCookieOf(conn);
         InputStream in = code >= 400 ? conn.getErrorStream() : conn.getInputStream();
         StringBuilder sb = new StringBuilder();
         if (in != null) {
@@ -1517,7 +1640,7 @@ public class MainActivity extends Activity {
             br.close();
         }
         conn.disconnect();
-        return new HttpsResult(code, sb.toString(), null);
+        return new HttpsResult(code, sb.toString(), setCookie);
     }
 
     /** Pulls the XSRF-TOKEN value out of a "Cookie:" header string. The portal
@@ -1533,6 +1656,164 @@ public class MainActivity extends Activity {
             }
         }
         return null;
+    }
+
+    /** "a=b; c=d" (a raw Cookie header, possibly several lines) → pairs. */
+    private static LinkedHashMap<String, String> parseCookieHeader(String header) {
+        LinkedHashMap<String, String> m = new LinkedHashMap<>();
+        if (header == null || header.isEmpty()) return m;
+        for (String line : header.split("\n")) {
+            for (String p : line.split(";")) {
+                p = p.trim();
+                int eq = p.indexOf('=');
+                if (eq > 0) m.put(p.substring(0, eq).trim(), p.substring(eq + 1).trim());
+            }
+        }
+        return m;
+    }
+
+    /** Set-Cookie response header(s) → pairs. Only the first segment of each
+        line is a cookie; the rest (Path, Secure, Expires…) are attributes. */
+    private static LinkedHashMap<String, String> parseSetCookie(String setCookie) {
+        LinkedHashMap<String, String> m = new LinkedHashMap<>();
+        if (setCookie == null || setCookie.isEmpty()) return m;
+        for (String line : setCookie.split("\n")) {
+            String first = line.split(";", 2)[0].trim();
+            int eq = first.indexOf('=');
+            if (eq > 0) m.put(first.substring(0, eq).trim(), first.substring(eq + 1).trim());
+        }
+        return m;
+    }
+
+    /** The stored cookie header updated with fresh Set-Cookie values (new wins) —
+        how a browser would present the cookies to the next request. */
+    private static String mergeCookies(String oldHeader, String setCookie) {
+        LinkedHashMap<String, String> m = parseCookieHeader(oldHeader);
+        m.putAll(parseSetCookie(setCookie));
+        StringBuilder sb = new StringBuilder();
+        for (Map.Entry<String, String> e : m.entrySet()) {
+            if (sb.length() > 0) sb.append("; ");
+            sb.append(e.getKey()).append('=').append(e.getValue());
+        }
+        return sb.toString();
+    }
+
+    /** Signs in to the portal exactly like its own SPA: GET /auth/csrf for a
+        fresh XSRF-TOKEN, then POST /auth/login with the token sent BOTH as a
+        cookie and as the X-XSRF-TOKEN header — the portal answers 403
+        FORBIDDEN when either half is missing (double-submit cookie check).
+        On success setCookie holds the merged cookie header (old cookies plus
+        the new DESCO_SESSION); on a rejected login it holds the HTTP error. */
+    private HttpsResult descoPortalLogin(String user, String pass, String oldCookies) {
+        try {
+            HttpsResult csrf = descoHttpGet(DESCO_PORTAL + "/auth/csrf", oldCookies);
+            String tok = xsrfTokenFromCookies(csrf.setCookie);
+            if (tok == null || tok.isEmpty()) tok = xsrfTokenFromCookies(oldCookies);
+            if (tok == null || tok.isEmpty()) return null;
+            String cookieHdr = mergeCookies(oldCookies, csrf.setCookie);
+
+            JSONObject body = new JSONObject();
+            body.put("username", user);
+            body.put("password", pass);
+            HttpsResult r = descoHttpPost(DESCO_PORTAL + "/auth/login", body.toString(), cookieHdr);
+            if (r.code < 200 || r.code >= 300) return r; // caller reads body/errorCode
+
+            String merged = mergeCookies(oldCookies, r.setCookie);
+            if (!merged.contains("DESCO_SESSION=")) return null; // no session came back
+            r.setCookie = merged;
+            return r;
+        } catch (Exception e) {
+            Log.w(TAG, "descoPortalLogin failed", e);
+            return null;
+        }
+    }
+
+    /** Re-establishes the active account's session in the background with the
+        credentials saved when the user signed in on the portal — so an expired
+        DESCO session revives itself instead of asking for a login.
+        Single-flight: parallel meter refreshes share one login attempt, and a
+        failed attempt starts a short backoff so a stale saved password can
+        never hammer (and lock) the portal account. seenGen is the session
+        generation observed before the failing request went out — if another
+        refresh already re-logged in since then, there is nothing to do.
+        Returns true when a usable session exists afterwards. */
+    private boolean descoRelogin(long seenGen) {
+        synchronized (descoLoginLock) {
+            try {
+                if (descoSessionGen != seenGen) return true; // fixed while we waited
+                SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+                String activeId = prefs.getString("descoActiveId", "");
+                JSONArray arr = loadDescoAccounts(prefs);
+                JSONObject acct = null;
+                for (int i = 0; i < arr.length(); i++) {
+                    JSONObject o = arr.getJSONObject(i);
+                    if (activeId.equals(o.optString("id"))) { acct = o; break; }
+                }
+                if (acct == null) return false;
+                String cookies = acct.optString("cookies", "");
+
+                /* Another refresh may already have re-logged in while we waited
+                   for the lock — re-probe before spending a login attempt. */
+                try {
+                    if (descoHttpGet(DESCO_PORTAL + "/api/accounts", cookies).code != 401) return true;
+                } catch (Exception e) {
+                    return false; // network trouble: don't log in blind
+                }
+
+                String user = acct.optString("username", "");
+                String pass = acct.optString("password", "");
+                if (user.isEmpty() || pass.isEmpty()) return false; // nothing saved to log in with
+                long now = System.currentTimeMillis();
+                if (now - descoLastLoginAt < 45000L) return false;  // back off after a failed attempt
+                descoLastLoginAt = now;
+
+                Log.i(TAG, "desco session expired — logging back in in the background");
+                HttpsResult r = descoPortalLogin(user, pass, cookies);
+                if (r == null || r.code < 200 || r.code >= 300) {
+                    String body = r == null || r.body == null ? "" : r.body;
+                    if (body.contains("INVALID_CREDENTIALS")) {
+                        /* The saved password no longer works. Drop it so the app
+                           never retries it — a wrong password on every refresh
+                           could get the portal account locked. The next manual
+                           portal login stores it again. */
+                        acct.remove("username");
+                        acct.remove("password");
+                        prefs.edit().putString("descoAccounts", arr.toString())
+                            .putLong("descoUpdatedAt", System.currentTimeMillis()).apply();
+                        pushDescoToCloud();
+                        Log.i(TAG, "desco saved password rejected — credentials dropped");
+                    } else {
+                        Log.w(TAG, "desco background login failed: HTTP "
+                            + (r == null ? 0 : r.code) + " " + body);
+                    }
+                    return false;
+                }
+
+                String fresh = r.setCookie;
+                acct.put("cookies", fresh);
+                prefs.edit().putString("descoAccounts", arr.toString())
+                    .putLong("descoUpdatedAt", System.currentTimeMillis()).apply();
+                applyCookiesToJar(fresh);
+                pushDescoToCloud();
+                descoSessionGen++;
+                Log.i(TAG, "desco session refreshed in the background");
+                return true;
+            } catch (Exception e) {
+                Log.w(TAG, "descoRelogin failed", e);
+                return false;
+            }
+        }
+    }
+
+    /** Asks the web app to re-upload the DESCO state (fresh cookies, changed
+        credentials) to Firebase. Best effort: when the app page isn't loaded
+        the next boot's loadDescoSessionFromCloud sees the newer local copy
+        and pushes it instead. */
+    private void pushDescoToCloud() {
+        try {
+            mainHandler.post(() -> webView.evaluateJavascript(
+                "window.saveDescoSessionToCloud&&window.saveDescoSessionToCloud()", null));
+        } catch (Exception e) { /* ignore */ }
     }
 
     /** JSON envelope shared by descoApiGetAsync / descoApiPostAsync. */
