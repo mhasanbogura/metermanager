@@ -1762,7 +1762,13 @@ public class MainActivity extends Activity {
 
                 String user = acct.optString("username", "");
                 String pass = acct.optString("password", "");
-                if (user.isEmpty() || pass.isEmpty()) return false; // nothing saved to log in with
+                if (user.isEmpty() || pass.isEmpty()) {
+                    /* Expected until the user signs in on the portal once more
+                       with this build — that login is what stores the
+                       credentials used from then on. */
+                    Log.i(TAG, "desco relogin skipped: no saved credentials yet");
+                    return false;
+                }
                 long now = System.currentTimeMillis();
                 if (now - descoLastLoginAt < 45000L) return false;  // back off after a failed attempt
                 descoLastLoginAt = now;
