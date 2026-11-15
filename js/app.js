@@ -111,7 +111,14 @@ const I18N = {
     'auth.send_reset': 'Send Reset Link', 'auth.fill_all': 'Fill all fields', 'auth.reset_sent': 'Reset link sent!',
     'settings.account': 'Account', 'settings.account_name': 'Name', 'settings.account_email': 'Email',
     'settings.desco_login': 'DESCO Login', 'settings.desco_logout': 'Remove DESCO Account', 'settings.desco_web_hint': 'The DESCO portal blocks websites from reading live data, so logging in here cannot refresh this website. Use the Android app to log in — the website then shows your last synced balance.', 'settings.desco_open_portal': 'Open portal anyway',
-    'settings.desco_hint': 'Your DESCO login is backed up to your account and renewed automatically — the app signs back in by itself when the session expires.',
+    'settings.desco_hint': 'Saved only for background sign-in: when you refresh and the session has expired, the app signs back in by itself and then loads your data.',
+    'settings.desco_user_label': 'DESCO User ID', 'settings.desco_user_ph': 'Portal user ID',
+    'settings.desco_pass_label': 'Password', 'settings.desco_pass_ph': 'Portal password',
+    'settings.desco_pass_keep': 'Leave blank to keep the password already saved.',
+    'settings.desco_save': 'Save', 'settings.desco_cancel': 'Cancel',
+    'settings.desco_saved': 'Login saved — used automatically on the next refresh',
+    'settings.desco_user_required': 'Enter your DESCO user ID',
+    'settings.desco_save_failed': 'Could not save the login',
     'settings.desco_add_account': 'Add account', 'settings.desco_no_accounts': 'No DESCO account added yet.',
     'settings.desco_active': 'Active',
     'settings.desco_reactivate': 'Reactivate', 'settings.desco_use': 'Use',
@@ -230,7 +237,14 @@ const I18N = {
     'settings.sign_out': 'সাইন আউট', 'settings.delete_account': 'অ্যাকাউন্ট মুছে ফেলুন',
     'settings.reset_password': 'পাসওয়ার্ড রিসেট',
     'settings.desco_login': 'DESCO লগইন', 'settings.desco_web_hint': 'ডেসকো পোর্টাল ওয়েবসাইট থেকে লাইভ ডেটা আনা বন্ধ রেখেছে, তাই এখানে লগইন করলেও ডেটা রিফ্রেশ হবে না। অ্যান্ড্রয়েড অ্যাপে লগইন করুন — ওয়েবসাইটে তখন সর্বশেষ ব্যালেন্স দেখাবে।', 'settings.desco_open_portal': 'যেকোনোভাবে পোর্টাল খুলুন',
-    'settings.desco_hint': 'আপনার DESCO লগইন অ্যাকাউন্টে ব্যাকআপ থাকে এবং নিজে থেকেই নবায়ন হয় — সেশনের মেয়াদ শেষ হলে অ্যাপ নিজে থেকেই আবার লগইন করে।',
+    'settings.desco_hint': 'শুধু ব্যাকগ্রাউন্ড সাইন-ইনের জন্য সংরক্ষিত: রিফ্রেশে সেশনের মেয়াদ শেষ থাকলে অ্যাপ নিজে থেকেই আবার লগইন করে, তারপর আপনার ডেটা লোড করে।',
+    'settings.desco_user_label': 'DESCO ইউজার আইডি', 'settings.desco_user_ph': 'পোর্টাল ইউজার আইডি',
+    'settings.desco_pass_label': 'পাসওয়ার্ড', 'settings.desco_pass_ph': 'পোর্টাল পাসওয়ার্ড',
+    'settings.desco_pass_keep': 'খালি রাখলে আগে সংরক্ষিত পাসওয়ার্ডই থাকবে।',
+    'settings.desco_save': 'সংরক্ষণ', 'settings.desco_cancel': 'বাতিল',
+    'settings.desco_saved': 'লগইন সংরক্ষিত — পরবর্তী রিফ্রেশে নিজে থেকেই ব্যবহার হবে',
+    'settings.desco_user_required': 'আপনার DESCO ইউজার আইডি দিন',
+    'settings.desco_save_failed': 'লগইন সংরক্ষণ করা যায়নি',
     'settings.desco_add_account': 'অ্যাকাউন্ট যোগ করুন', 'settings.desco_no_accounts': 'এখনো কোনো DESCO অ্যাকাউন্ট যোগ করা হয়নি।',
     'settings.desco_active': 'সক্রিয়',
     'settings.desco_reactivate': 'পুনরায় সক্রিয়',
@@ -2383,7 +2397,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.75'} (build ${'968'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.76'} (build ${'971'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
@@ -2430,8 +2444,55 @@ function descoAccountsList() {
   } catch (e) {}
   return [];
 }
+/* DESCO Login row -> the same dialog style as everywhere else: it only
+   SAVES the portal user ID + password (the password itself never leaves
+   native storage). No sign-in happens here — the saved login is used when a
+   refresh finds an expired session: the app re-logs in in the background and
+   then loads the data. */
 window._settingsDescoLogin = function() {
-  window._settingsDescoAddAccount();
+  /* Web build has no native storage: the portal itself is the only place to
+     sign in, so fall back to opening it. */
+  if (!(window.NescoBridge && typeof window.NescoBridge.saveDescoLogin === 'function')) {
+    window._settingsDescoAddAccount();
+    return;
+  }
+  let saved = { user: '', hasPass: false };
+  try { saved = JSON.parse(window.NescoBridge.getDescoSavedLogin() || '{}') || saved; } catch (e) {}
+  const keepNote = saved.hasPass
+    ? `<div class="hint" style="margin:0 0 6px">${esc(t('settings.desco_pass_keep'))}</div>` : '';
+  openDialog(t('settings.desco_login'), `
+    <label>${esc(t('settings.desco_user_label'))}</label>
+    <input type="text" id="descoUser" placeholder="${esc(t('settings.desco_user_ph'))}" value="${esc(saved.user || '')}" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false">
+    <label>${esc(t('settings.desco_pass_label'))}</label>
+    <input type="password" id="descoPass" placeholder="${esc(t('settings.desco_pass_ph'))}" autocomplete="current-password">
+    <div class="hint" style="margin:0 0 6px">${esc(t('settings.desco_hint'))}</div>
+    ${keepNote}
+    <div id="descoSaveStatus" style="font-size:13.5px;min-height:18px;color:var(--text-2)"></div>
+    <div style="text-align:center;margin-top:6px"><a href="#" id="descoOpenPortal" style="font-size:13px">${esc(t('settings.desco_open_portal'))}</a></div>`,
+    [
+      { key: 'save', label: t('settings.desco_save'), cls: '', fn: window.saveDescoLoginFromDialog },
+      { key: 'cancel', label: t('settings.desco_cancel'), cls: 'secondary', fn: closeDialog }
+    ]);
+  const u = $('#descoUser'), p = $('#descoPass');
+  [u, p].forEach(el => { if (el) el.addEventListener('keydown', e => { if (e.key === 'Enter') window.saveDescoLoginFromDialog(); }); });
+  const link = $('#descoOpenPortal');
+  if (link) link.onclick = e => { e.preventDefault(); closeDialog(); window._settingsDescoAddAccount(); };
+  if (u) u.focus();
+};
+window.saveDescoLoginFromDialog = function() {
+  const u = $('#descoUser'), p = $('#descoPass'), status = $('#descoSaveStatus');
+  const user = ((u && u.value) || '').trim();
+  if (!user) { if (status) status.textContent = t('settings.desco_user_required'); return; }
+  let res = null;
+  try { res = JSON.parse(window.NescoBridge.saveDescoLogin(user, (p && p.value) || '') || 'null'); } catch (e) {}
+  if (!res || !res.ok) { if (status) status.textContent = t('settings.desco_save_failed'); return; }
+  closeDialog();
+  toast(t('settings.desco_saved'));
+  saveDescoSessionToCloud(); /* back the saved login up to Firebase */
+  if (typeof currentView !== 'undefined' && currentView === 'settings') renderSettings();
+  /* Data comes from the refresh: that refresh is what triggers the
+     background re-login with the login just saved. */
+  refreshAllMeters();
 };
 window._settingsDescoAddAccount = function() {
   try {
@@ -2445,7 +2506,7 @@ window._settingsDescoAddAccount = function() {
 window._settingsDescoUse = function(id) {
   try { window.NescoBridge && window.NescoBridge.setDescoActive && window.NescoBridge.setDescoActive(id); } catch (e) {}
   saveDescoSessionToCloud();
-  window._settingsDescoLogin();
+  window._settingsDescoAddAccount(); /* switching account: sign in on the portal */
   toast(t('settings.desco_switched'));
 };
 window._settingsDescoRemove = function(id) {

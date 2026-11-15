@@ -900,6 +900,72 @@ public class MainActivity extends Activity {
             Log.i(TAG, "desco login credentials captured for background re-login");
         }
 
+        /** The saved DESCO login for the active (or newest) account as
+            {"user","hasPass"} — prefill for the settings popup. The password
+            itself is never exposed to JavaScript. */
+        @JavascriptInterface
+        public String getDescoSavedLogin() {
+            try {
+                SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+                String activeId = prefs.getString("descoActiveId", "");
+                JSONArray arr = loadDescoAccounts(prefs);
+                JSONObject acct = null;
+                for (int i = 0; i < arr.length() && acct == null; i++) {
+                    JSONObject o = arr.getJSONObject(i);
+                    if (activeId.equals(o.optString("id"))) acct = o;
+                }
+                if (acct == null && arr.length() > 0) acct = arr.getJSONObject(arr.length() - 1);
+                JSONObject j = new JSONObject();
+                if (acct != null) {
+                    j.put("user", acct.optString("username", ""));
+                    j.put("hasPass", !acct.optString("password", "").isEmpty());
+                }
+                return j.toString();
+            } catch (Exception e) {
+                return "{\"user\":\"\",\"hasPass\":false}";
+            }
+        }
+
+        /** Stores the DESCO login typed in the settings popup onto the active
+            account (or the newest one; a placeholder record is created when
+            none exists). An empty password keeps the one already saved.
+            Nothing is signed in here — the portal login runs in the
+            background on the next refresh, and only then does data load. */
+        @JavascriptInterface
+        public String saveDescoLogin(String user, String pass) {
+            try {
+                if (user == null || user.trim().isEmpty()) return "{\"ok\":false,\"err\":\"user\"}";
+                SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+                JSONArray arr = loadDescoAccounts(prefs);
+                String activeId = prefs.getString("descoActiveId", "");
+                JSONObject acct = null;
+                for (int i = 0; i < arr.length() && acct == null; i++) {
+                    JSONObject o = arr.getJSONObject(i);
+                    if (activeId.equals(o.optString("id"))) acct = o;
+                }
+                if (acct == null && arr.length() > 0) acct = arr.getJSONObject(arr.length() - 1);
+                if (acct == null) {
+                    acct = new JSONObject();
+                    acct.put("id", "d" + System.currentTimeMillis());
+                    acct.put("label", user.trim());
+                    acct.put("addedAt", System.currentTimeMillis());
+                    acct.put("cookies", "");
+                    arr.put(acct);
+                }
+                acct.put("username", user.trim());
+                String p = pass == null ? "" : pass;
+                if (!p.isEmpty()) acct.put("password", p); // blank keeps the stored one
+                prefs.edit().putString("descoAccounts", arr.toString())
+                    .putString("descoActiveId", acct.optString("id"))
+                    .putLong("descoUpdatedAt", System.currentTimeMillis()).apply();
+                Log.i(TAG, "desco login saved from settings popup");
+                return "{\"ok\":true}";
+            } catch (Exception e) {
+                Log.w(TAG, "saveDescoLogin failed", e);
+                return "{\"ok\":false}";
+            }
+        }
+
         @JavascriptInterface
         public String getDescoCookies() {
             SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
@@ -971,7 +1037,10 @@ public class MainActivity extends Activity {
                 JSONArray clean = new JSONArray();
                 for (int i = 0; i < arr.length(); i++) {
                     JSONObject o = arr.getJSONObject(i);
-                    if (o.optString("cookies").contains("DESCO_SESSION=")) clean.put(o);
+                    /* A session OR a saved login counts: the login is what lets
+                       the app re-login in the background on the next refresh. */
+                    if (o.optString("cookies").contains("DESCO_SESSION=")
+                        || !o.optString("username").isEmpty()) clean.put(o);
                 }
                 if (clean.length() == 0) return;
                 String activeId = in.optString("activeId", "");
@@ -1415,10 +1484,12 @@ public class MainActivity extends Activity {
         }
     }
 
-    /** Stored DESCO accounts with junk sessions filtered out.  An entry that
-        never obtained a DESCO_SESSION (an XSRF-TOKEN alone is set on every
-        anonymous portal visit) cannot authenticate, so it is dropped from the
-        list — and if the active id pointed at one, it is re-pointed at the
+    /** Stored DESCO accounts with junk filtered out.  An entry that never
+        obtained a DESCO_SESSION (an XSRF-TOKEN alone is set on every
+        anonymous portal visit) AND carries no saved login cannot authenticate,
+        so it is dropped from the list — an entry with a saved login is kept,
+        because descoRelogin can sign it back in on the next refresh.
+        If the active id pointed at a dropped one, it is re-pointed at the
         newest surviving account.  Prefs are rewritten only when something
         actually changed. */
     private JSONArray loadDescoAccounts(SharedPreferences prefs) {
@@ -1427,7 +1498,9 @@ public class MainActivity extends Activity {
             JSONArray out = new JSONArray();
             for (int i = 0; i < arr.length(); i++) {
                 JSONObject o = arr.getJSONObject(i);
-                if (o.optString("cookies").contains("DESCO_SESSION=")) out.put(o);
+                boolean usable = o.optString("cookies").contains("DESCO_SESSION=")
+                    || !o.optString("username").isEmpty();
+                if (usable) out.put(o);
             }
             if (out.length() != arr.length()) {
                 String activeId = prefs.getString("descoActiveId", "");
@@ -1781,11 +1854,14 @@ public class MainActivity extends Activity {
                 HttpsResult r = descoPortalLogin(user, pass, cookies);
                 if (r == null || r.code < 200 || r.code >= 300) {
                     String body = r == null || r.body == null ? "" : r.body;
-                    if (body.contains("INVALID_CREDENTIALS")) {
-                        /* The saved password no longer works. Drop it so the app
-                           never retries it — a wrong password on every refresh
-                           could get the portal account locked. The next manual
-                           portal login stores it again. */
+                    /* The portal reports both an explicit INVALID_CREDENTIALS
+       and a bare AUTHENTICATION_REQUIRED (what it actually returns for a
+       wrong username/password pair) — treat either as "the saved password no
+       longer works". Drop it so the app never retries it: a wrong password on
+       every refresh could get the portal account locked. The next manual
+       portal login (or the DESCO Login popup) stores it again. */
+                    if (body.contains("INVALID_CREDENTIALS")
+                        || body.contains("AUTHENTICATION_REQUIRED")) {
                         acct.remove("username");
                         acct.remove("password");
                         prefs.edit().putString("descoAccounts", arr.toString())
