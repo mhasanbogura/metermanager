@@ -1749,7 +1749,10 @@ public class MainActivity extends Activity {
                     JSONObject o = arr.getJSONObject(i);
                     if (activeId.equals(o.optString("id"))) { acct = o; break; }
                 }
-                if (acct == null) return false;
+                if (acct == null) {
+                    Log.i(TAG, "desco relogin skipped: no active DESCO account record");
+                    return false;
+                }
                 String cookies = acct.optString("cookies", "");
 
                 /* Another refresh may already have re-logged in while we waited
@@ -1757,6 +1760,7 @@ public class MainActivity extends Activity {
                 try {
                     if (descoHttpGet(DESCO_PORTAL + "/api/accounts", cookies).code != 401) return true;
                 } catch (Exception e) {
+                    Log.i(TAG, "desco relogin skipped: session probe failed (" + e + ")");
                     return false; // network trouble: don't log in blind
                 }
 
