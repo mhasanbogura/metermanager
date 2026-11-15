@@ -2397,7 +2397,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.76'} (build ${'971'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.77'} (build ${'974'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
@@ -2459,13 +2459,13 @@ window._settingsDescoLogin = function() {
   let saved = { user: '', hasPass: false };
   try { saved = JSON.parse(window.NescoBridge.getDescoSavedLogin() || '{}') || saved; } catch (e) {}
   const keepNote = saved.hasPass
-    ? `<div class="hint" style="margin:0 0 6px">${esc(t('settings.desco_pass_keep'))}</div>` : '';
+    ? `<div class="hint" style="margin:6px 0 0">${esc(t('settings.desco_pass_keep'))}</div>` : '';
   openDialog(t('settings.desco_login'), `
     <label>${esc(t('settings.desco_user_label'))}</label>
     <input type="text" id="descoUser" placeholder="${esc(t('settings.desco_user_ph'))}" value="${esc(saved.user || '')}" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false">
     <label>${esc(t('settings.desco_pass_label'))}</label>
     <input type="password" id="descoPass" placeholder="${esc(t('settings.desco_pass_ph'))}" autocomplete="current-password">
-    <div class="hint" style="margin:0 0 6px">${esc(t('settings.desco_hint'))}</div>
+    <div class="hint" style="margin:8px 0 0">${esc(t('settings.desco_hint'))}</div>
     ${keepNote}
     <div id="descoSaveStatus" style="font-size:13.5px;min-height:18px;color:var(--text-2)"></div>
     <div style="text-align:center;margin-top:6px"><a href="#" id="descoOpenPortal" style="font-size:13px">${esc(t('settings.desco_open_portal'))}</a></div>`,
