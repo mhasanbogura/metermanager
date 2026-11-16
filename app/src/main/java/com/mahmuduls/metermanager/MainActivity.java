@@ -919,10 +919,13 @@ public class MainActivity extends Activity {
                 if (acct != null) {
                     j.put("user", acct.optString("username", ""));
                     j.put("hasPass", !acct.optString("password", "").isEmpty());
+                    /* True when the portal itself turned the saved login down —
+                       the popup then warns instead of silently retrying. */
+                    j.put("rejected", acct.optLong("loginRejectedAt", 0L) > 0);
                 }
                 return j.toString();
             } catch (Exception e) {
-                return "{\"user\":\"\",\"hasPass\":false}";
+                return "{\"user\":\"\",\"hasPass\":false,\"rejected\":false}";
             }
         }
 
@@ -955,6 +958,10 @@ public class MainActivity extends Activity {
                 acct.put("username", user.trim());
                 String p = pass == null ? "" : pass;
                 if (!p.isEmpty()) acct.put("password", p); // blank keeps the stored one
+                /* A fresh save clears any earlier "portal said no" marker, so the
+                   next refresh is allowed to try the login again. */
+                acct.remove("loginRejectedAt");
+                acct.remove("loginRejectCode");
                 prefs.edit().putString("descoAccounts", arr.toString())
                     .putString("descoActiveId", acct.optString("id"))
                     .putLong("descoUpdatedAt", System.currentTimeMillis()).apply();
@@ -1158,6 +1165,7 @@ public class MainActivity extends Activity {
                             r = descoHttpGet(url, getDescoCookies());
                         }
                     }
+                    if (r.code >= 200 && r.code < 300) clearDescoLoginRejection();
                     payload = descoPayload(r.code, r.body);
                 } catch (Exception e) {
                     payload = "{\"ok\":false,\"status\":0,\"body\":\"\"}";
@@ -1180,6 +1188,7 @@ public class MainActivity extends Activity {
                             r = descoHttpPost(url, body, getDescoCookies());
                         }
                     }
+                    if (r.code >= 200 && r.code < 300) clearDescoLoginRejection();
                     payload = descoPayload(r.code, r.body);
                 } catch (Exception e) {
                     payload = "{\"ok\":false,\"status\":0,\"body\":\"\"}";
@@ -1614,6 +1623,10 @@ public class MainActivity extends Activity {
                 displayLabel = entry.optString("label");
             }
             entry.put("cookies", cookies); // fresh session (new or re-login)
+            /* A portal sign-in just succeeded, so any earlier "the portal
+               rejected the saved login" marker no longer applies. */
+            entry.remove("loginRejectedAt");
+            entry.remove("loginRejectCode");
             /* Keep the credentials the portal login just used, so the app can
                sign back in by itself whenever the session expires. */
             String user = pendingDescoUser;
@@ -1822,11 +1835,30 @@ public class MainActivity extends Activity {
                     JSONObject o = arr.getJSONObject(i);
                     if (activeId.equals(o.optString("id"))) { acct = o; break; }
                 }
+                /* loadDescoAccounts prunes unusable records and may re-point the
+                   active id — a stale id must never blind the re-login, so fall
+                   back to the newest account (the one holding the saved login). */
+                if (acct == null && arr.length() > 0) acct = arr.getJSONObject(arr.length() - 1);
                 if (acct == null) {
                     Log.i(TAG, "desco relogin skipped: no active DESCO account record");
                     return false;
                 }
                 String cookies = acct.optString("cookies", "");
+
+                /* The portal already refused this login once (wrong email/mobile
+                   number or password). Keep the credentials — dropping them wiped
+                   the saved login AND the account record with it — but do not try
+                   again until the user saves the login afresh, so a stale
+                   password can never hammer the portal into locking the account.
+                   Checked before the probe: there is no point touching the portal
+                   at all while the saved login is known to be turned down (the
+                   caller then also skips its retry, so a refresh costs nothing
+                   extra). */
+                if (acct.optLong("loginRejectedAt", 0L) > 0) {
+                    Log.i(TAG, "desco relogin paused: portal rejected the saved login ("
+                        + acct.optString("loginRejectCode", "") + ") — save the login again to retry");
+                    return false;
+                }
 
                 /* Another refresh may already have re-logged in while we waited
                    for the lock — re-probe before spending a login attempt. */
@@ -1854,20 +1886,28 @@ public class MainActivity extends Activity {
                 HttpsResult r = descoPortalLogin(user, pass, cookies);
                 if (r == null || r.code < 200 || r.code >= 300) {
                     String body = r == null || r.body == null ? "" : r.body;
+                    Log.i(TAG, "desco background login: HTTP " + (r == null ? 0 : r.code)
+                        + " " + (body.length() > 240 ? body.substring(0, 240) : body));
                     /* The portal reports both an explicit INVALID_CREDENTIALS
        and a bare AUTHENTICATION_REQUIRED (what it actually returns for a
-       wrong username/password pair) — treat either as "the saved password no
-       longer works". Drop it so the app never retries it: a wrong password on
-       every refresh could get the portal account locked. The next manual
-       portal login (or the DESCO Login popup) stores it again. */
+       wrong username/password pair) — treat either as "the saved login is
+       not accepted". The credentials are KEPT (so the popup can still
+       prefill them and the account record survives) but flagged, which
+       pauses retries until the login is saved again — a wrong password
+       tried on every refresh could get the portal account locked. */
                     if (body.contains("INVALID_CREDENTIALS")
-                        || body.contains("AUTHENTICATION_REQUIRED")) {
-                        acct.remove("username");
-                        acct.remove("password");
+                        || body.contains("AUTHENTICATION_REQUIRED")
+                        || body.contains("ACCOUNT_LOCKED")
+                        || body.contains("RATE_LIMITED")) {
+                        acct.put("loginRejectedAt", now);
+                        acct.put("loginRejectCode", body.contains("ACCOUNT_LOCKED") ? "ACCOUNT_LOCKED"
+                            : body.contains("RATE_LIMITED") ? "RATE_LIMITED"
+                            : body.contains("INVALID_CREDENTIALS") ? "INVALID_CREDENTIALS"
+                            : "AUTHENTICATION_REQUIRED");
                         prefs.edit().putString("descoAccounts", arr.toString())
                             .putLong("descoUpdatedAt", System.currentTimeMillis()).apply();
                         pushDescoToCloud();
-                        Log.i(TAG, "desco saved password rejected — credentials dropped");
+                        Log.i(TAG, "desco saved login rejected — kept for editing, retries paused");
                     } else {
                         Log.w(TAG, "desco background login failed: HTTP "
                             + (r == null ? 0 : r.code) + " " + body);
@@ -1877,6 +1917,8 @@ public class MainActivity extends Activity {
 
                 String fresh = r.setCookie;
                 acct.put("cookies", fresh);
+                acct.remove("loginRejectedAt");
+                acct.remove("loginRejectCode");
                 prefs.edit().putString("descoAccounts", arr.toString())
                     .putLong("descoUpdatedAt", System.currentTimeMillis()).apply();
                 applyCookiesToJar(fresh);
@@ -1889,6 +1931,31 @@ public class MainActivity extends Activity {
                 return false;
             }
         }
+    }
+
+    /** Drops the "portal rejected the saved login" marker as soon as the
+        session proves usable again (a manual portal sign-in, for example), so
+        the warning only shows while it is actually true. Cheap: the raw prefs
+        string is checked first and nothing is written unless a marker exists. */
+    private void clearDescoLoginRejection() {
+        try {
+            SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+            if (prefs.getString("descoAccounts", "[]").indexOf("loginRejectedAt") < 0) return;
+            JSONArray arr = loadDescoAccounts(prefs);
+            String activeId = prefs.getString("descoActiveId", "");
+            JSONObject acct = null;
+            for (int i = 0; i < arr.length(); i++) {
+                JSONObject o = arr.getJSONObject(i);
+                if (activeId.equals(o.optString("id"))) { acct = o; break; }
+            }
+            if (acct == null && arr.length() > 0) acct = arr.getJSONObject(arr.length() - 1);
+            if (acct == null || !acct.has("loginRejectedAt")) return;
+            acct.remove("loginRejectedAt");
+            acct.remove("loginRejectCode");
+            prefs.edit().putString("descoAccounts", arr.toString())
+                .putLong("descoUpdatedAt", System.currentTimeMillis()).apply();
+            Log.i(TAG, "desco login rejection cleared — the session is accepted again");
+        } catch (Exception e) { /* best effort */ }
     }
 
     /** Asks the web app to re-upload the DESCO state (fresh cookies, changed

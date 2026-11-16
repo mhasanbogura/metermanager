@@ -93,6 +93,7 @@ const I18N = {
     'err.network': 'Network error. Check your connection and try again.',
     'err.server': 'DESCO server is temporarily unreachable.',
     'err.session': 'DESCO login expired. Please log in again from Settings → DESCO Login.',
+    'err.rejected': 'DESCO rejected the saved login. Check your email/mobile number and password in Settings → DESCO Login.',
     'time.just': 'just now', 'time.min': '{m} min ago', 'time.hour': '{h} hour ago', 'time.hours': '{h} hours ago',
     'time.day': '{d} day ago', 'time.days': '{d} days ago', 'time.month': '{m} month ago', 'time.months': '{m} months ago',
     'detail.balance_updated': 'Updated {t}',
@@ -110,14 +111,16 @@ const I18N = {
     'auth.forgot_title': 'Forgot Password', 'auth.forgot_hint': "We'll send you a reset link",
     'auth.send_reset': 'Send Reset Link', 'auth.fill_all': 'Fill all fields', 'auth.reset_sent': 'Reset link sent!',
     'settings.account': 'Account', 'settings.account_name': 'Name', 'settings.account_email': 'Email',
-    'settings.desco_login': 'DESCO Login', 'settings.desco_logout': 'Remove DESCO Account', 'settings.desco_web_hint': 'The DESCO portal blocks websites from reading live data, so logging in here cannot refresh this website. Use the Android app to log in — the website then shows your last synced balance.', 'settings.desco_open_portal': 'Open portal anyway',
+    'settings.desco_login': 'DESCO Login', 'settings.desco_logout': 'Remove DESCO Account', 'settings.desco_web_hint': 'The DESCO portal blocks websites from reading live data, so logging in here cannot refresh this website. Use the Android app to log in — the website then shows your last synced balance.', 'settings.desco_open_portal': 'Open Portal',
     'settings.desco_hint': 'Saved only for background sign-in: when you refresh and the session has expired, the app signs back in by itself and then loads your data.',
-    'settings.desco_user_label': 'DESCO User ID', 'settings.desco_user_ph': 'Portal user ID',
+    'settings.desco_user_label': 'Email or mobile number', 'settings.desco_user_ph': 'e.g. name@example.com or 01712345678',
     'settings.desco_pass_label': 'Password', 'settings.desco_pass_ph': 'Portal password',
     'settings.desco_pass_keep': 'Leave blank to keep the password already saved.',
     'settings.desco_save': 'Save', 'settings.desco_cancel': 'Cancel',
     'settings.desco_saved': 'Login saved — used automatically on the next refresh',
-    'settings.desco_user_required': 'Enter your DESCO user ID',
+    'settings.desco_user_required': 'Enter your email or mobile number',
+    'settings.desco_user_err': 'Enter the email address or mobile number you sign in to the DESCO portal with — not your meter/account number.',
+    'settings.desco_rejected': 'DESCO rejected this login. Check the email/mobile number and password, then save again.',
     'settings.desco_save_failed': 'Could not save the login',
     'settings.desco_add_account': 'Add account', 'settings.desco_no_accounts': 'No DESCO account added yet.',
     'settings.desco_active': 'Active',
@@ -217,6 +220,7 @@ const I18N = {
     'err.network': 'নেটওয়ার্ক সমস্যা। সংযোগ পরীক্ষা করে আবার চেষ্টা করুন।',
     'err.server': 'ডেসকো সার্ভার সাময়িকভাবে অনুপলব্ধ।',
     'err.session': 'ডেসকো লগইনের মেয়াদ শেষ হয়েছে। সেটিংস → DESCO Login থেকে আবার লগইন করুন।',
+    'err.rejected': 'ডেসকো সেভ করা লগইন গ্রহণ করেনি। সেটিংস → DESCO Login থেকে ইমেইল/মোবাইল ও পাসওয়ার্ড মিলিয়ে দেখুন।',
     'time.just': 'এইমাত্র', 'time.min': '{m} মিনিট আগে', 'time.hour': '{h} ঘণ্টা আগে', 'time.hours': '{h} ঘণ্টা আগে',
     'time.day': '{d} দিন আগে', 'time.days': '{d} দিন আগে', 'time.month': '{m} মাস আগে', 'time.months': '{m} মাস আগে',
     'detail.balance_updated': '{t} আপডেট হয়েছে',
@@ -236,14 +240,16 @@ const I18N = {
     'settings.account': 'অ্যাকাউন্ট', 'settings.account_name': 'নাম', 'settings.account_email': 'ইমেইল',
     'settings.sign_out': 'সাইন আউট', 'settings.delete_account': 'অ্যাকাউন্ট মুছে ফেলুন',
     'settings.reset_password': 'পাসওয়ার্ড রিসেট',
-    'settings.desco_login': 'DESCO লগইন', 'settings.desco_web_hint': 'ডেসকো পোর্টাল ওয়েবসাইট থেকে লাইভ ডেটা আনা বন্ধ রেখেছে, তাই এখানে লগইন করলেও ডেটা রিফ্রেশ হবে না। অ্যান্ড্রয়েড অ্যাপে লগইন করুন — ওয়েবসাইটে তখন সর্বশেষ ব্যালেন্স দেখাবে।', 'settings.desco_open_portal': 'যেকোনোভাবে পোর্টাল খুলুন',
+    'settings.desco_login': 'DESCO লগইন', 'settings.desco_web_hint': 'ডেসকো পোর্টাল ওয়েবসাইট থেকে লাইভ ডেটা আনা বন্ধ রেখেছে, তাই এখানে লগইন করলেও ডেটা রিফ্রেশ হবে না। অ্যান্ড্রয়েড অ্যাপে লগইন করুন — ওয়েবসাইটে তখন সর্বশেষ ব্যালেন্স দেখাবে।', 'settings.desco_open_portal': 'পোর্টাল খুলুন',
     'settings.desco_hint': 'শুধু ব্যাকগ্রাউন্ড সাইন-ইনের জন্য সংরক্ষিত: রিফ্রেশে সেশনের মেয়াদ শেষ থাকলে অ্যাপ নিজে থেকেই আবার লগইন করে, তারপর আপনার ডেটা লোড করে।',
-    'settings.desco_user_label': 'DESCO ইউজার আইডি', 'settings.desco_user_ph': 'পোর্টাল ইউজার আইডি',
+    'settings.desco_user_label': 'ইমেইল বা মোবাইল নম্বর', 'settings.desco_user_ph': 'যেমন: name@example.com বা 01712345678',
     'settings.desco_pass_label': 'পাসওয়ার্ড', 'settings.desco_pass_ph': 'পোর্টাল পাসওয়ার্ড',
     'settings.desco_pass_keep': 'খালি রাখলে আগে সংরক্ষিত পাসওয়ার্ডই থাকবে।',
     'settings.desco_save': 'সংরক্ষণ', 'settings.desco_cancel': 'বাতিল',
     'settings.desco_saved': 'লগইন সংরক্ষিত — পরবর্তী রিফ্রেশে নিজে থেকেই ব্যবহার হবে',
-    'settings.desco_user_required': 'আপনার DESCO ইউজার আইডি দিন',
+    'settings.desco_user_required': 'আপনার ইমেইল বা মোবাইল নম্বর দিন',
+    'settings.desco_user_err': 'ডেসকো পোর্টালে যে ইমেইল বা মোবাইল নম্বর দিয়ে লগইন করেন সেটি লিখুন — মিটার/অ্যাকাউন্ট নম্বর নয়।',
+    'settings.desco_rejected': 'ডেসকো এই লগইন গ্রহণ করেনি। ইমেইল/মোবাইল ও পাসওয়ার্ড মিলিয়ে দেখুন, তারপর আবার সংরক্ষণ করুন।',
     'settings.desco_save_failed': 'লগইন সংরক্ষণ করা যায়নি',
     'settings.desco_add_account': 'অ্যাকাউন্ট যোগ করুন', 'settings.desco_no_accounts': 'এখনো কোনো DESCO অ্যাকাউন্ট যোগ করা হয়নি।',
     'settings.desco_active': 'সক্রিয়',
@@ -708,6 +714,18 @@ async function refreshMeter(meter, opts = {}) {
   if (!opts.silent) { saveMeters(); renderHome(); if (currentView === 'meter' && currentMeterId === meter.id) renderMeterDetail(); }
 }
 
+/* Why the DESCO session isn't usable: the portal rejecting the SAVED LOGIN is
+   a different (and more actionable) problem than a merely expired session, so
+   the card says which one it is. */
+function descoSessionErr() {
+  try {
+    if (window.NescoBridge && typeof window.NescoBridge.getDescoSavedLogin === 'function') {
+      if (JSON.parse(window.NescoBridge.getDescoSavedLogin() || '{}').rejected) return t('err.rejected');
+    }
+  } catch (e) { /* fall through */ }
+  return t('err.session');
+}
+
 async function refreshMeterOnce(meter) {
   if (meter.provider === 'desco') {
     try {
@@ -749,7 +767,7 @@ async function refreshMeterOnce(meter) {
         meter.err = null;
         meter.stale = false;
       } else if (balErr && balErr.status === 401) {
-        meter.err = t('err.session');
+        meter.err = descoSessionErr();
       } else if (balErr) {
         throw balErr; /* network/timeout → retry loop */
       } else {
@@ -764,7 +782,7 @@ async function refreshMeterOnce(meter) {
         else meter.err = t('err.network');
         return;
       }
-      if (e && e.status === 401) { meter.err = t('err.session'); return; }
+      if (e && e.status === 401) { meter.err = descoSessionErr(); return; }
       if (e && e.code === 'notfound') { meter.err = t('add.notfound'); return; }
       throw e;
     }
@@ -2397,7 +2415,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.77'} (build ${'974'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.78'} (build ${'977'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
@@ -2456,25 +2474,23 @@ window._settingsDescoLogin = function() {
     window._settingsDescoAddAccount();
     return;
   }
-  let saved = { user: '', hasPass: false };
+  let saved = { user: '', hasPass: false, rejected: false };
   try { saved = JSON.parse(window.NescoBridge.getDescoSavedLogin() || '{}') || saved; } catch (e) {}
-  const keepNote = saved.hasPass
-    ? `<div class="hint" style="margin:6px 0 0">${esc(t('settings.desco_pass_keep'))}</div>` : '';
+  /* Just the two fields — no explanatory paragraph. Save sits on the right. */
   openDialog(t('settings.desco_login'), `
     <label>${esc(t('settings.desco_user_label'))}</label>
-    <input type="text" id="descoUser" placeholder="${esc(t('settings.desco_user_ph'))}" value="${esc(saved.user || '')}" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false">
+    <input type="text" id="descoUser" placeholder="${esc(t('settings.desco_user_ph'))}" value="${esc(saved.user || '')}" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" inputmode="email">
     <label>${esc(t('settings.desco_pass_label'))}</label>
     <input type="password" id="descoPass" placeholder="${esc(t('settings.desco_pass_ph'))}" autocomplete="current-password">
-    <div class="hint" style="margin:8px 0 0">${esc(t('settings.desco_hint'))}</div>
-    ${keepNote}
-    <div id="descoSaveStatus" style="font-size:13.5px;min-height:18px;color:var(--text-2)"></div>
+    <div id="descoSaveStatus" style="font-size:13.5px;min-height:18px;color:var(--text-2)">${saved.rejected ? esc(t('settings.desco_rejected')) : ''}</div>
     <div style="text-align:center;margin-top:6px"><a href="#" id="descoOpenPortal" style="font-size:13px">${esc(t('settings.desco_open_portal'))}</a></div>`,
     [
-      { key: 'save', label: t('settings.desco_save'), cls: '', fn: window.saveDescoLoginFromDialog },
-      { key: 'cancel', label: t('settings.desco_cancel'), cls: 'secondary', fn: closeDialog }
+      { key: 'cancel', label: t('settings.desco_cancel'), cls: 'secondary', fn: closeDialog },
+      { key: 'save', label: t('settings.desco_save'), cls: '', fn: window.saveDescoLoginFromDialog }
     ]);
   const u = $('#descoUser'), p = $('#descoPass');
   [u, p].forEach(el => { if (el) el.addEventListener('keydown', e => { if (e.key === 'Enter') window.saveDescoLoginFromDialog(); }); });
+  if (saved.rejected) { const st = $('#descoSaveStatus'); if (st) st.style.color = 'var(--danger, #d64545)'; }
   const link = $('#descoOpenPortal');
   if (link) link.onclick = e => { e.preventDefault(); closeDialog(); window._settingsDescoAddAccount(); };
   if (u) u.focus();
@@ -2482,7 +2498,20 @@ window._settingsDescoLogin = function() {
 window.saveDescoLoginFromDialog = function() {
   const u = $('#descoUser'), p = $('#descoPass'), status = $('#descoSaveStatus');
   const user = ((u && u.value) || '').trim();
+  if (status) status.style.color = '';
   if (!user) { if (status) status.textContent = t('settings.desco_user_required'); return; }
+  /* The portal only ever registers an email address or a Bangla mobile
+     number (its own sign-in form validates exactly that) — anything else is
+     almost always the 8-digit meter/account number, which the portal turns
+     down with a 401. Say so here instead of failing in the background. */
+  const digits = user.replace(/[\s\-()]/g, '');
+  const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(user);
+  const isMobile = /^(?:\+?880|0)1[3-9]\d{8}$/.test(digits);
+  if (!isEmail && !isMobile) {
+    if (status) { status.style.color = 'var(--danger, #d64545)'; status.textContent = t('settings.desco_user_err'); }
+    if (u) u.focus();
+    return;
+  }
   let res = null;
   try { res = JSON.parse(window.NescoBridge.saveDescoLogin(user, (p && p.value) || '') || 'null'); } catch (e) {}
   if (!res || !res.ok) { if (status) status.textContent = t('settings.desco_save_failed'); return; }
