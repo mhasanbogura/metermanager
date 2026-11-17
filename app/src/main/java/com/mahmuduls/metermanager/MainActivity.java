@@ -213,9 +213,12 @@ public class MainActivity extends Activity {
                             view.evaluateJavascript(
                                 "window.__descoAccountAdded&&window.__descoAccountAdded(" + payload + ")", null);
                         } else {
-                            // Normal app (re)load: make sure the active account's
-                            // session is in the cookie jar before API calls go out.
-                            restoreActiveDescoCookies();
+                            // Normal app (re)load: a portal sign-in may still be
+                            // sitting in the cookie jar (the SPA never fires
+                            // onPageFinished after logging in), so store it
+                            // first — otherwise restoreActiveDescoCookies()
+                            // would lay the stale session back over it.
+                            if (!persistWebViewDescoSession()) restoreActiveDescoCookies();
                         }
                     }
                     view.evaluateJavascript(
@@ -341,7 +344,9 @@ public class MainActivity extends Activity {
         String curUrl = webView.getUrl();
         if (addingDescoAccount && curUrl != null && curUrl.startsWith(DESCO_PORTAL)) {
             // User backed out of the "Add account" portal login — return to the
-            // app; onPageFinished restores the active account's cookies.
+            // app; a sign-in that already happened is kept first (the SPA never
+            // fires onPageFinished, so this is the only chance to store it).
+            persistWebViewDescoSession();
             addingDescoAccount = false;
             pendingDescoUser = null;
             pendingDescoPass = null;
@@ -886,6 +891,10 @@ public class MainActivity extends Activity {
                     .putString("descoCookies", cookies)
                     .apply();
             }
+            /* Also hand the session to the active account — the legacy key
+               above is only read when no account record exists, so without
+               this a portal sign-in never reached getDescoCookies(). */
+            persistWebViewDescoSession();
         }
 
         /** Credentials the portal login form just submitted (captured by the
@@ -1159,8 +1168,11 @@ public class MainActivity extends Activity {
                     long gen = descoSessionGen;
                     HttpsResult r = descoHttpGet(url, getDescoCookies());
                     if (r.code == 401 && url.indexOf("/auth/") < 0) {
-                        // Expired session: revive it in the background — or just
-                        // retry when another refresh already re-logged in.
+                        // The WebView may hold a sign-in the SPA never reported
+                        // (no page finish after a client-side login): store it
+                        // first, then revive the session — or just retry when
+                        // another refresh already re-logged in.
+                        persistWebViewDescoSession();
                         if (descoSessionGen != gen || descoRelogin(gen)) {
                             r = descoHttpGet(url, getDescoCookies());
                         }
@@ -1184,6 +1196,7 @@ public class MainActivity extends Activity {
                     long gen = descoSessionGen;
                     HttpsResult r = descoHttpPost(url, body, getDescoCookies());
                     if (r.code == 401 && url.indexOf("/auth/") < 0) {
+                        persistWebViewDescoSession();
                         if (descoSessionGen != gen || descoRelogin(gen)) {
                             r = descoHttpPost(url, body, getDescoCookies());
                         }
@@ -1474,6 +1487,67 @@ public class MainActivity extends Activity {
         }
     }
 
+    /** The DESCO session the WebView is currently holding, written onto the
+        active account. The portal is a single-page app: after a sign-in it
+        only swaps the route, so onPageFinished never fires and the login would
+        be lost — the app would keep using the expired cookies it already had
+        (the WebView's own jar was never read back). Returns true when a newer
+        session was stored, which also bumps descoSessionGen so in-flight
+        requests retry with it. */
+    private boolean persistWebViewDescoSession() {
+        try {
+            String all = CookieManager.getInstance().getCookie(DESCO_PORTAL);
+            if (all == null || all.isEmpty()) return false;
+            String session = extractDescoSessionCookies(all);
+            if (!session.contains("DESCO_SESSION=")) return false; // still signed out
+            SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+            JSONArray arr = loadDescoAccounts(prefs);
+            String activeId = prefs.getString("descoActiveId", "");
+            JSONObject acct = null;
+            for (int i = 0; i < arr.length(); i++) {
+                JSONObject o = arr.getJSONObject(i);
+                if (activeId.equals(o.optString("id"))) { acct = o; break; }
+            }
+            if (acct == null && arr.length() > 0) acct = arr.getJSONObject(arr.length() - 1);
+            /* The jar is kept in step with prefs by applyCookiesToJar, so an
+               identical copy means there is nothing new to store. */
+            if (acct != null && session.equals(acct.optString("cookies"))) return false;
+            long now = System.currentTimeMillis();
+            if (acct == null) {
+                acct = new JSONObject();
+                acct.put("id", "d" + now);
+                acct.put("label", "DESCO account");
+                acct.put("addedAt", now);
+                arr.put(acct);
+            }
+            acct.put("cookies", session);
+            /* A sign-in just happened in the WebView: keep the credentials that
+               produced it (captured by the portal's login hook) for the
+               background re-login after the session expires. */
+            String user = pendingDescoUser;
+            if (user != null && !user.isEmpty()) {
+                acct.put("username", user);
+                acct.put("password", pendingDescoPass == null ? "" : pendingDescoPass);
+                pendingDescoUser = null;
+                pendingDescoPass = null;
+                Log.i(TAG, "desco credentials stored from the portal sign-in");
+            }
+            acct.remove("loginRejectedAt");
+            acct.remove("loginRejectCode");
+            prefs.edit().putString("descoAccounts", arr.toString())
+                .putString("descoActiveId", acct.optString("id"))
+                .putLong("descoUpdatedAt", now).apply();
+            applyCookiesToJar(session);
+            descoSessionGen++;
+            Log.i(TAG, "desco session captured from the portal sign-in");
+            pushDescoToCloud();
+            return true;
+        } catch (Exception e) {
+            Log.w(TAG, "persistWebViewDescoSession failed", e);
+            return false;
+        }
+    }
+
     /** Puts the active account's saved session into the jar (called on app load). */
     private void restoreActiveDescoCookies() {
         try {
@@ -1705,6 +1779,10 @@ public class MainActivity extends Activity {
         conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Mobile Safari/537.36");
         conn.setRequestProperty("Accept", "application/json");
         conn.setRequestProperty("Content-Type", "application/json");
+        /* Same headers the portal's own fetch() sends, so the login looks like
+           a sign-in from the site itself rather than a bare API client. */
+        conn.setRequestProperty("Origin", DESCO_PORTAL);
+        conn.setRequestProperty("Referer", DESCO_PORTAL + "/");
         if (cookie != null && !cookie.isEmpty()) {
             conn.setRequestProperty("Cookie", cookie);
             String xsrf = xsrfTokenFromCookies(cookie);
