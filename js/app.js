@@ -37,7 +37,7 @@ const I18N = {
     'detail.reading_time': 'Collected: {t}',
     'detail.reading_value': 'Last reading: {v} kWh',
     'detail.daily': 'Daily consumption (last 15 days)', 'detail.monthly': 'Monthly consumption (last 12 months)',
-    'detail.recharge_history': 'Recharge history', 'detail.recharge_empty': 'No recharges in the last year.', 'detail.stale': 'Showing last synced data. Refresh in the Android app for live values.',
+    'detail.recharge_history': 'Recharge History', 'detail.recharge_empty': 'No recharges in the last year.', 'detail.stale': 'Showing last synced data. Refresh in the Android app for live values.',
     'detail.total': 'Total', 'detail.energy': 'Energy', 'detail.vat': 'VAT', 'detail.rebate': 'Rebate', 'detail.meter_rent': 'Meter Rent', 'detail.demand_charge': 'Demand Charge',
     'detail.date': 'Date', 'detail.order': 'Order', 'detail.token': 'Token', 'detail.kwh': 'kWh', 'detail.bdt': '৳',
     'detail.chart_unit': 'kWh', 'detail.chart_taka': '৳',
@@ -57,7 +57,7 @@ const I18N = {
     'settings.general': 'General Settings', 'settings.device_theme': 'Device Theme', 'settings.device_theme_hint': 'Automatically switch theme based on system',
     'settings.oled_theme': 'OLED Theme', 'settings.oled_theme_hint': 'Use OLED black backdrop for eye comfort',
     'settings.language': 'Language', 'settings.low_threshold': 'Low balance threshold', 'settings.low_threshold_hint': 'Default threshold (BDT)',
-    'settings.share': 'Share app', 'settings.get_app': 'Get Android App', 'settings.android_app_url': 'https://u2l.ai/MeterManager', 'settings.link_copied': 'Link copied!', 'settings.import_export': 'Import/Export Meter Data', 'settings.delete_all': 'Delete All Meters',
+    'settings.share': 'Share App', 'settings.get_app': 'Get Android App', 'settings.android_app_url': 'https://u2l.ai/MeterManager', 'settings.link_copied': 'Link copied!', 'settings.import_export': 'Import/Export Meter Data', 'settings.delete_all': 'Delete All Meters',
     'settings.about': 'About App', 'settings.contact': 'Contact Developer',
     'settings.no_desc': 'No description available.', 'settings.no_contact': 'No contact information available.',
     'detail.energy_amount': 'Energy Amount', 'detail.energy_kwh': 'Energy (kWh)', 'detail.vat_other': 'VAT & Other Charges',
@@ -186,7 +186,7 @@ const I18N = {
     'settings.general': 'সাধারণ সেটিংস', 'settings.device_theme': 'ডিভাইস থিম', 'settings.device_theme_hint': 'সিস্টেমের উপর ভিত্তি করে স্বয়ংক্রিয়ভাবে থিম পরিবর্তন করুন',
     'settings.oled_theme': 'OLED থিম', 'settings.oled_theme_hint': 'চোখের আরামের জন্য OLED কালো ব্যাকড্রপ ব্যবহার করুন।',
     'settings.language': 'ভাষা', 'settings.low_threshold': 'কম ব্যালেন্স সীমা', 'settings.low_threshold_hint': 'ডিফল্ট সীমা (টাকায়)',
-    'settings.share': 'শেয়ার', 'settings.get_app': 'অ্যান্ড্রয়েড অ্যাপ নিন', 'settings.android_app_url': 'https://u2l.ai/MeterManager', 'settings.link_copied': 'লিংক কপি হয়েছে!', 'settings.import_export': 'মিটার ডেটা ইমপোর্ট/এক্সপোর্ট', 'settings.delete_all': 'সমস্ত মিটার মুছে ফেলুন',
+    'settings.share': 'শেয়ার অ্যাপ', 'settings.get_app': 'অ্যান্ড্রয়েড অ্যাপ নিন', 'settings.android_app_url': 'https://u2l.ai/MeterManager', 'settings.link_copied': 'লিংক কপি হয়েছে!', 'settings.import_export': 'মিটার ডেটা ইমপোর্ট/এক্সপোর্ট', 'settings.delete_all': 'সমস্ত মিটার মুছে ফেলুন',
     'settings.about': 'অ্যাপ সম্পর্কে', 'settings.contact': 'ডেভেলপারের সাথে যোগাযোগ করুন',
     'settings.update': 'আপডেট দেখুন', 'settings.update.title': 'অ্যাপ আপডেট', 'settings.update.new': 'নতুন সংস্করণ পাওয়া গেছে ({v})',
     'settings.update.current': 'বর্তমান: {v} (বিল্ড {b})', 'settings.update.download': 'ডাউনলোড ও ইনস্টল',
@@ -412,9 +412,11 @@ function fmtDate(s) {
 function fmtDateTime(s) {
   if (!s) return '';
   const d = new Date(s); if (isNaN(d)) return String(s);
-  const loc = langs === I18N.bn ? 'bn-BD' : 'en-US';
-  return d.toLocaleDateString(loc, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) +
-    ', ' + d.toLocaleTimeString(loc, { hour: 'numeric', minute: '2-digit', second: '2-digit' });
+  const dateLoc = langs === I18N.bn ? 'bn-BD' : 'en-GB';
+  const timeLoc = langs === I18N.bn ? 'bn-BD' : 'en-US';
+  /* "Wednesday, 18 November 2026, 2:08:27 PM" */
+  return d.toLocaleDateString(dateLoc, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) +
+    ', ' + d.toLocaleTimeString(timeLoc, { hour: 'numeric', minute: '2-digit', second: '2-digit' }).replace(/\u202f/g, ' ');
 }
 function timeAgo(ts) {
   if (!ts) return t('home.updated_never');
@@ -2385,22 +2387,23 @@ function renderSettings() {
     <div class="sett-section">
       <div class="sett-section-title">MORE</div>
       <div class="sett-section-card">
+        ${hasNativeDriveScan() ? `
         <div class="sett-item" id="btnUpdateApp" onclick="window.onForcedUpdateClick()">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity:.6"><path d="M13.6 5h3.9A2.5 2.5 0 0 1 20 7.5v11A2.5 2.5 0 0 1 17.5 21h-11A2.5 2.5 0 0 1 4 18.5v-11A2.5 2.5 0 0 1 6.5 5h3.9"/><path d="M12 2.5V14.4"/><path d="M8.4 13.4 12 18.4l3.6-5z" fill="currentColor" stroke="none"/></svg>
           <span style="flex:1">${esc(t('settings.update.title'))}</span>
           <svg class="sett-chevron" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
-        </div>
-        ${(window.NescoBridge && window.NescoBridge.shareText) ? `
-        <div class="sett-item" onclick="window._settingsShare()">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" style="opacity:.6"><path d="M15.4 7.15 8.6 10.85"/><path d="M8.6 13.15 15.4 16.85"/><circle cx="17.5" cy="6" r="2.4" fill="currentColor" stroke="none"/><circle cx="6.5" cy="12" r="2.4" fill="currentColor" stroke="none"/><circle cx="17.5" cy="18" r="2.4" fill="currentColor" stroke="none"/></svg>
-          <span style="flex:1">${esc(t('settings.share'))}</span>
-          <svg class="sett-chevron" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
-        </div>` : `
+        </div>` : ''}
+        ${!hasNativeDriveScan() ? `
         <div class="sett-item" onclick="location.href='https://u2l.ai/MeterManager'">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="opacity:.6"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
           <span style="flex:1">${esc(t('settings.get_app'))}</span>
           <svg class="sett-chevron" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
-        </div>`}
+        </div>` : ''}
+        <div class="sett-item" onclick="window._settingsShare()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" style="opacity:.6"><path d="M15.4 7.15 8.6 10.85"/><path d="M8.6 13.15 15.4 16.85"/><circle cx="17.5" cy="6" r="2.4" fill="currentColor" stroke="none"/><circle cx="6.5" cy="12" r="2.4" fill="currentColor" stroke="none"/><circle cx="17.5" cy="18" r="2.4" fill="currentColor" stroke="none"/></svg>
+          <span style="flex:1">${esc(t('settings.share'))}</span>
+          <svg class="sett-chevron" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
+        </div>
         <div class="sett-item" id="btnAbout" onclick="window._settingsAbout(this)">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="opacity:.6"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
           <span style="flex:1">${esc(t('settings.about'))}</span>
@@ -2415,7 +2418,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.79'} (build ${'980'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.82'} (build ${'989'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {
