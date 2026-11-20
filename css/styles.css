@@ -448,8 +448,10 @@ table.list.hist tr.hist-month-total td:first-child { text-align: left; padding-l
 .sett-section { margin-top: 16px; }
 .sett-section-title {
   font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px;
-  color: var(--text-2); margin-bottom: 10px; text-align: center;
+  color: #000; margin-bottom: 10px; text-align: center;
 }
+[data-theme="dark"] .sett-section-title,
+[data-theme="oled"] .sett-section-title { color: #fff; }
 .sett-section-card {
   background: var(--surface); border: 1px solid var(--border);
   border-radius: var(--radius); padding: 0 14px; box-shadow: var(--shadow);
