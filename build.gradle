@@ -16,6 +16,9 @@ buildscript {
 //   gradlew assembleDebug preview      -> build first, then serve
 // Files are read from disk on every request with caching disabled, so edits
 // and rebuilds show up on browser refresh - no restart needed for changes.
+// The server listens on every interface, so BlueStacks (http://10.0.2.2:1002)
+// and phones on the same Wi-Fi can open the same preview; both URLs are
+// printed on start.
 // Ctrl+C stops the server.
 // ---------------------------------------------------------------------------
 task preview {
@@ -34,7 +37,9 @@ task preview {
         ]
         com.sun.net.httpserver.HttpServer server
         try {
-            server = com.sun.net.httpserver.HttpServer.create(new InetSocketAddress('127.0.0.1', port), 0)
+            // Bind all interfaces (not loopback-only) so the preview is reachable
+            // from BlueStacks/emulators and other devices, not just this PC.
+            server = com.sun.net.httpserver.HttpServer.create(new InetSocketAddress(port), 0)
         } catch (IOException e) {
             throw new GradleException("Preview port ${port} is already in use - stop the other preview server first.")
         }
@@ -67,6 +72,17 @@ task preview {
         server.start()
         def url = "http://localhost:${port}/index.html"
         println "Preview server running: ${url}   (Ctrl+C to stop)"
+        println "  BlueStacks / Android emulator: http://10.0.2.2:${port}/index.html"
+        try {
+            java.net.NetworkInterface.getNetworkInterfaces().each { ni ->
+                if (!ni.isUp() || ni.isLoopback()) return
+                ni.inetAddresses.each { ia ->
+                    if (ia instanceof java.net.Inet4Address && !ia.isLoopbackAddress()) {
+                        println "  Same network (phone/PC):      http://${ia.hostAddress}:${port}/index.html"
+                    }
+                }
+            }
+        } catch (Throwable ignored) { }
         try {
             java.awt.Desktop.desktop.browse(new URI(url))
         } catch (Throwable ignored) { }

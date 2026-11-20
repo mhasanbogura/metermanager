@@ -57,6 +57,11 @@ public class MainActivity extends Activity {
     private static final String TAG = "MeterManager";
     private static final String WEB_URL = "https://mhasanbogura.github.io/metermanager/";
     private static final String DESCO_PORTAL = "https://prepaid.desco.org.bd";
+    /* Bumped whenever the portal sign-in request changes shape. A "portal
+       rejected the saved login" marker is tagged with the revision that saw it,
+       so a fix retries the saved login instead of staying paused forever.
+       v2: auth endpoints moved under /api (bare /auth/… answers 401 always). */
+    private static final int DESCO_AUTH_REV = 2;
     private static final String PANEL = "https://customer.nesco.gov.bd/pre/panel";
     private static final String SUBMIT_HISTORY = "\u09B0\u09BF\u099A\u09BE\u09B0\u09CD\u099C \u09B9\u09BF\u09B8\u09CD\u099F\u09CD\u09B0\u09BF";
     private static final String SUBMIT_MONTHLY = "\u09AE\u09BE\u09B8\u09BF\u0995 \u09AC\u09CD\u09AF\u09AC\u09B9\u09BE\u09B0";
@@ -1862,15 +1867,18 @@ public class MainActivity extends Activity {
         return sb.toString();
     }
 
-    /** Signs in to the portal exactly like its own SPA: GET /auth/csrf for a
-        fresh XSRF-TOKEN, then POST /auth/login with the token sent BOTH as a
-        cookie and as the X-XSRF-TOKEN header — the portal answers 403
+    /** Signs in to the portal exactly like its own SPA: GET /api/auth/csrf for
+        a fresh XSRF-TOKEN, then POST /api/auth/login with the token sent BOTH
+        as a cookie and as the X-XSRF-TOKEN header — the portal answers 403
         FORBIDDEN when either half is missing (double-submit cookie check).
+        Both paths live under /api (the SPA's fetch base); the bare /auth/…
+        paths answer 401 AUTHENTICATION_REQUIRED for every request, valid
+        credentials included.
         On success setCookie holds the merged cookie header (old cookies plus
         the new DESCO_SESSION); on a rejected login it holds the HTTP error. */
     private HttpsResult descoPortalLogin(String user, String pass, String oldCookies) {
         try {
-            HttpsResult csrf = descoHttpGet(DESCO_PORTAL + "/auth/csrf", oldCookies);
+            HttpsResult csrf = descoHttpGet(DESCO_PORTAL + "/api/auth/csrf", oldCookies);
             String tok = xsrfTokenFromCookies(csrf.setCookie);
             if (tok == null || tok.isEmpty()) tok = xsrfTokenFromCookies(oldCookies);
             if (tok == null || tok.isEmpty()) return null;
@@ -1879,7 +1887,7 @@ public class MainActivity extends Activity {
             JSONObject body = new JSONObject();
             body.put("username", user);
             body.put("password", pass);
-            HttpsResult r = descoHttpPost(DESCO_PORTAL + "/auth/login", body.toString(), cookieHdr);
+            HttpsResult r = descoHttpPost(DESCO_PORTAL + "/api/auth/login", body.toString(), cookieHdr);
             if (r.code < 200 || r.code >= 300) return r; // caller reads body/errorCode
 
             String merged = mergeCookies(oldCookies, r.setCookie);
@@ -1931,11 +1939,26 @@ public class MainActivity extends Activity {
                    Checked before the probe: there is no point touching the portal
                    at all while the saved login is known to be turned down (the
                    caller then also skips its retry, so a refresh costs nothing
-                   extra). */
+                   extra).
+                   The marker records the auth revision that produced it: a build
+                   that fixes the sign-in request must not leave every account
+                   stuck behind a rejection the old request shape caused, so a
+                   marker from an earlier revision is dropped once here. */
                 if (acct.optLong("loginRejectedAt", 0L) > 0) {
-                    Log.i(TAG, "desco relogin paused: portal rejected the saved login ("
-                        + acct.optString("loginRejectCode", "") + ") — save the login again to retry");
-                    return false;
+                    int rejectRev = acct.optInt("loginRejectRev", 0);
+                    if (rejectRev < DESCO_AUTH_REV) {
+                        acct.remove("loginRejectedAt");
+                        acct.remove("loginRejectCode");
+                        acct.remove("loginRejectRev");
+                        prefs.edit().putString("descoAccounts", arr.toString())
+                            .putLong("descoUpdatedAt", System.currentTimeMillis()).apply();
+                        Log.i(TAG, "desco relogin unpaused: rejection came from auth revision "
+                            + rejectRev + " (now " + DESCO_AUTH_REV + ")");
+                    } else {
+                        Log.i(TAG, "desco relogin paused: portal rejected the saved login ("
+                            + acct.optString("loginRejectCode", "") + ") — save the login again to retry");
+                        return false;
+                    }
                 }
 
                 /* Another refresh may already have re-logged in while we waited
@@ -1978,6 +2001,7 @@ public class MainActivity extends Activity {
                         || body.contains("ACCOUNT_LOCKED")
                         || body.contains("RATE_LIMITED")) {
                         acct.put("loginRejectedAt", now);
+                        acct.put("loginRejectRev", DESCO_AUTH_REV);
                         acct.put("loginRejectCode", body.contains("ACCOUNT_LOCKED") ? "ACCOUNT_LOCKED"
                             : body.contains("RATE_LIMITED") ? "RATE_LIMITED"
                             : body.contains("INVALID_CREDENTIALS") ? "INVALID_CREDENTIALS"

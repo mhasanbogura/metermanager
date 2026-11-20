@@ -1401,20 +1401,87 @@ function renderNescoInfoCard(m) {
     </tbody></table>
   </section>`;
 }
+
+/* ---------- recharge history rows with monthly totals ----------
+   History rows are grouped by calendar month and each month opens with a
+   total row (except the running month). Totals sum every listed row. */
+function histMonthKey(s) {
+  const d = new Date(s);
+  return isNaN(d) ? String(s || '') : d.getFullYear() + '-' + pad(d.getMonth() + 1);
+}
+function histMonthLabel(s) {
+  const d = new Date(s);
+  if (isNaN(d)) return String(s || '');
+  const loc = langs === I18N.bn ? 'bn-BD' : 'en-GB';
+  return d.toLocaleDateString(loc, { month: 'long', year: 'numeric' });
+}
+function histVisible(list, max) {
+  const rows = list.slice(0, max);
+  if (rows.length === max && list.length > max) {
+    const key = histMonthKey(rows[rows.length - 1].rechargeDate);
+    for (let i = max; i < list.length && histMonthKey(list[i].rechargeDate) === key; i++) rows.push(list[i]);
+  }
+  return rows;
+}
+function renderHistRows(items) {
+  /* Each month's total row is emitted BEFORE that month's recharges — the
+     month opens with its total, then the entries. The running (current) month
+     is still in progress, so it gets no total row. */
+  const groups = [];
+  items.forEach(it => {
+    const key = histMonthKey(it.date);
+    const last = groups[groups.length - 1];
+    if (last && last.key === key) last.items.push(it);
+    else groups.push({ key, items: [it] });
+  });
+  const now = new Date();
+  const runningKey = now.getFullYear() + '-' + pad(now.getMonth() + 1);
+  return groups.map(g => {
+    const sum = { total: 0, ea: 0, units: 0, rent: 0, dem: 0, vat: 0, reb: 0 };
+    g.items.forEach(it => {
+      for (const k in sum) sum[k] += Number(it.nums[k]) || 0;
+    });
+    const totalRow = g.key === runningKey ? '' : `<tr class="hist-month-total"><td colspan="2">${esc(histMonthLabel(g.items[0].date))} ${esc(t('detail.total'))}</td>`
+      + `<td>${fmtBdt(sum.total)}</td><td>${fmtBdt(sum.ea)}</td><td>${fmtUnits(sum.units)}</td>`
+      + `<td>${fmtBdt(sum.rent)}</td><td>${fmtBdt(sum.dem)}</td><td>${fmtBdt(sum.vat)}</td><td>${fmtBdt(sum.reb)}</td><td>–</td></tr>`;
+    return totalRow + g.items.map(it => '<tr>' + it.cells.join('') + '</tr>').join('');
+  }).join('');
+}
 function renderNescoHistory(m) {
-  const rows = (m.history || []).slice(0, 60);
+  const rows = histVisible(m.history || [], 60);
+  const items = rows.map(r => {
+    const total = Number(r.rechargeAmount) || 0;
+    const ea = Number(r.electricityAmount) || 0;
+    const units = Number(r.energyUnit) || 0;
+    const rent = Number(r.meterRent) || 0;
+    const dem = Number(r.demandCharge) || 0;
+    const vat = Number(r.vat) || 0;
+    const reb = Number(r.subsidy) || 0;
+    const st = r.rechargeStatus || '';
+    const stLow = st.toLowerCase();
+    const stColor = stLow.includes('success') ? 'var(--success)' : (stLow.includes('fail') ? '#ff6b6b' : 'inherit');
+    return {
+      date: r.rechargeDate,
+      nums: { total, ea, units, rent, dem, vat, reb },
+      cells: [
+        `<td style="white-space:pre">${esc(fmtDateTime(r.rechargeDate))}</td>`,
+        `<td style="white-space:normal;word-break:break-all;max-width:140px">${fmtToken(r.tokenNo || r.orderId || '')}</td>`,
+        `<td style="font-weight:600">${fmtBdt(total)}</td>`,
+        `<td>${fmtBdt(ea)}</td>`,
+        `<td>${fmtUnits(units)}</td>`,
+        `<td>${fmtBdt(rent)}</td>`,
+        `<td>${fmtBdt(dem)}</td>`,
+        `<td>${fmtBdt(vat)}</td>`,
+        `<td>${fmtBdt(reb)}</td>`,
+        `<td style="color:${stColor};font-weight:600">${esc(st || '–')}</td>`
+      ]
+    };
+  });
   return `<section class="card">
     <h3>${esc(t('detail.recharge_history'))}</h3>
     ${rows.length
       ? `<div class="tbl-scroll"><table class="list hist"><thead><tr><th>${esc(t('detail.date'))}</th><th>${esc(t('detail.token'))}</th><th>${esc(t('detail.total'))}</th><th>${esc(t('detail.energy_amount'))}</th><th>${esc(t('detail.energy_kwh'))}</th><th>${esc(t('detail.meter_rent'))}</th><th>${esc(t('detail.demand_charge'))}</th><th>${esc(t('detail.vat'))}</th><th>${esc(t('detail.rebate'))}</th><th>${esc(t('detail.status'))}</th></tr></thead><tbody>
-        ${rows.map(r => {
-          const total = Number(r.rechargeAmount) || 0;
-          const ea = Number(r.electricityAmount) || 0;
-          const st = r.rechargeStatus || '';
-          const stLow = st.toLowerCase();
-          const stColor = stLow.includes('success') ? 'var(--success)' : (stLow.includes('fail') ? '#ff6b6b' : 'inherit');
-          return `<tr><td style="white-space:pre">${esc(fmtDateTime(r.rechargeDate))}</td><td style="white-space:normal;word-break:break-all;max-width:140px">${fmtToken(r.tokenNo || r.orderId || '')}</td><td style="font-weight:600">${fmtBdt(total)}</td><td>${fmtBdt(ea)}</td><td>${fmtUnits(r.energyUnit)}</td><td>${fmtBdt(Number(r.meterRent) || 0)}</td><td>${fmtBdt(Number(r.demandCharge) || 0)}</td><td>${fmtBdt(Number(r.vat) || 0)}</td><td>${fmtBdt(Number(r.subsidy) || 0)}</td><td style="color:${stColor};font-weight:600">${esc(st || '–')}</td></tr>`;
-        }).join('')}
+        ${renderHistRows(items)}
       </tbody></table></div>`
       : `<p class="muted">${esc(t('detail.recharge_empty'))}</p>`}
   </section>`;
@@ -1874,29 +1941,46 @@ function renderTotalUseCard(thisMonth, lastMonth) {
 }
 
 function renderHistory(hist) {
-  const rows = hist.slice(0, 60);
+  const rows = histVisible(hist, 60);
+  const items = rows.map(r => {
+    const total = Number(r.totalAmount) || 0;
+    const ea = Number(r.energyAmount) || 0;
+    const units = descoTakaToKwh(ea);
+    const tokens = (r.chargeItems || []).map(c => c.tokenNo || c.token || '').filter(Boolean).join(', ');
+    const tokenDisplay = tokens || r.tokenNo || r.token || r.orderID || '';
+    const chFind = (re) => { const c = (r.chargeItems || []).find(c => re.test(c.chargeItemName || c.name || '')); return c ? Number(c.chargeAmount) : null; };
+    const flat = (v) => (v !== undefined && v !== null && v !== '') ? Number(v) : null;
+    /* v2 rows carry flat meterRent/demandCharge/vat keys; chargeItems is the legacy fallback. */
+    const rent = flat(r.meterRent) ?? chFind(/rent/i);
+    const dem = flat(r.demandCharge) ?? chFind(/demand/i);
+    const vatV = flat(r.vat) ?? flat(r.VAT) ?? chFind(/vat/i);
+    const reb = flat(r.rebate);
+    const money = v => (v === null || v === undefined || isNaN(v)) ? '–' : fmtBdt(v);
+    const st = r.orderStatus || r.status || r.rechargeStatus || '';
+    const stLow = String(st).toLowerCase();
+    const stColor = stLow.includes('success') ? 'var(--success)' : (stLow.includes('fail') ? '#ff6b6b' : 'inherit');
+    return {
+      date: r.rechargeDate,
+      nums: { total, ea, units, rent: rent || 0, dem: dem || 0, vat: vatV || 0, reb: reb || 0 },
+      cells: [
+        `<td style="white-space:pre">${esc(fmtDateTime(r.rechargeDate))}</td>`,
+        `<td style="white-space:normal;word-break:break-all;max-width:140px">${fmtToken(tokenDisplay)}</td>`,
+        `<td style="font-weight:600">${fmtBdt(total)}</td>`,
+        `<td>${fmtBdt(ea)}</td>`,
+        `<td>${fmtUnits(units)}</td>`,
+        `<td>${money(rent)}</td>`,
+        `<td>${money(dem)}</td>`,
+        `<td>${money(vatV)}</td>`,
+        `<td>${money(reb)}</td>`,
+        `<td style="color:${stColor};font-weight:600">${esc(st || '–')}</td>`
+      ]
+    };
+  });
   return `<section class="card">
     <h3>${esc(t('detail.recharge_history'))}</h3>
     ${rows.length
       ? `<div class="tbl-scroll"><table class="list hist"><thead><tr><th>${esc(t('detail.date'))}</th><th>${esc(t('detail.token'))}</th><th>${esc(t('detail.total'))}</th><th>${esc(t('detail.energy_amount'))}</th><th>${esc(t('detail.energy_kwh'))}</th><th>${esc(t('detail.meter_rent'))}</th><th>${esc(t('detail.demand_charge'))}</th><th>${esc(t('detail.vat'))}</th><th>${esc(t('detail.rebate'))}</th><th>${esc(t('detail.status'))}</th></tr></thead><tbody>
-        ${rows.map(r => {
-          const total = Number(r.totalAmount) || 0;
-          const ea = Number(r.energyAmount) || 0;
-          const tokens = (r.chargeItems || []).map(c => c.tokenNo || c.token || '').filter(Boolean).join(', ');
-          const tokenDisplay = tokens || r.tokenNo || r.token || r.orderID || '';
-          const chFind = (re) => { const c = (r.chargeItems || []).find(c => re.test(c.chargeItemName || c.name || '')); return c ? Number(c.chargeAmount) : null; };
-          const flat = (v) => (v !== undefined && v !== null && v !== '') ? Number(v) : null;
-          /* v2 rows carry flat meterRent/demandCharge/vat keys; chargeItems is the legacy fallback. */
-          const rent = flat(r.meterRent) ?? chFind(/rent/i);
-          const dem = flat(r.demandCharge) ?? chFind(/demand/i);
-          const vatV = flat(r.vat) ?? flat(r.VAT) ?? chFind(/vat/i);
-          const reb = flat(r.rebate);
-          const money = v => (v === null || v === undefined || isNaN(v)) ? '–' : fmtBdt(v);
-          const st = r.orderStatus || r.status || r.rechargeStatus || '';
-          const stLow = String(st).toLowerCase();
-          const stColor = stLow.includes('success') ? 'var(--success)' : (stLow.includes('fail') ? '#ff6b6b' : 'inherit');
-          return `<tr><td style="white-space:pre">${esc(fmtDateTime(r.rechargeDate))}</td><td style="white-space:normal;word-break:break-all;max-width:140px">${fmtToken(tokenDisplay)}</td><td style="font-weight:600">${fmtBdt(total)}</td><td>${fmtBdt(ea)}</td><td>${fmtUnits(descoTakaToKwh(ea))}</td><td>${money(rent)}</td><td>${money(dem)}</td><td>${money(vatV)}</td><td>${money(reb)}</td><td style="color:${stColor};font-weight:600">${esc(st || '–')}</td></tr>`;
-        }).join('')}
+        ${renderHistRows(items)}
       </tbody></table></div>`
       : `<p class="muted">${esc(t('detail.recharge_empty'))}</p>`}
   </section>`;
@@ -2426,7 +2510,7 @@ function renderSettings() {
     </div>
 
     <div style="text-align:center;margin-top:40px;padding:16px 0;border-top:1px solid var(--border)">
-      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.82'} (build ${'989'})</span>
+      <span style="font-size:11px;color:var(--text-2);font-family:serif;letter-spacing:0.5px">Version ${'1.3.83'} (build ${'992'})</span>
     </div>`;
 
   $('#settDeviceTheme').onchange = (e) => {

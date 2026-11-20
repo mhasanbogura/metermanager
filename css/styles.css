@@ -279,6 +279,11 @@ table.list th { color: var(--text-2); font-weight: 600; font-size: 11.5px; text-
 table.list tr:last-child td { border-bottom: 0; }
 table.list.hist th, table.list.hist td { border: 1px solid var(--border); text-align: center; vertical-align: middle; }
 table.list.hist tr:last-child td { border-bottom: 1px solid var(--border); }
+/* Monthly subtotal row in Recharge History. */
+table.list.hist tr.hist-month-total td {
+  background: var(--surface-2); font-weight: 700;
+}
+table.list.hist tr.hist-month-total td:first-child { text-align: left; padding-left: 12px; }
 .tbl-scroll { overflow-x: auto; }
 
 /* ---------- pull-to-refresh pill ---------- */
