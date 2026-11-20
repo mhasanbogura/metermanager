@@ -419,7 +419,7 @@ function fmtDateTime(s) {
      18 November
      2026,
      2:08:27 PM
-     Rendered with white-space:pre-line, so \n is the break. */
+     Rendered with white-space:pre, so \n is the break and no line re-wraps. */
   const weekday = d.toLocaleDateString(dateLoc, { weekday: 'long' });
   const dayMonth = d.toLocaleDateString(dateLoc, { day: 'numeric', month: 'long' });
   const year = d.toLocaleDateString(dateLoc, { year: 'numeric' });
@@ -1413,7 +1413,7 @@ function renderNescoHistory(m) {
           const st = r.rechargeStatus || '';
           const stLow = st.toLowerCase();
           const stColor = stLow.includes('success') ? 'var(--success)' : (stLow.includes('fail') ? '#ff6b6b' : 'inherit');
-          return `<tr><td style="white-space:pre-line">${esc(fmtDateTime(r.rechargeDate))}</td><td style="white-space:normal;word-break:break-all;max-width:140px">${fmtToken(r.tokenNo || r.orderId || '')}</td><td style="font-weight:600">${fmtBdt(total)}</td><td>${fmtBdt(ea)}</td><td>${fmtUnits(r.energyUnit)}</td><td>${fmtBdt(Number(r.meterRent) || 0)}</td><td>${fmtBdt(Number(r.demandCharge) || 0)}</td><td>${fmtBdt(Number(r.vat) || 0)}</td><td>${fmtBdt(Number(r.subsidy) || 0)}</td><td style="color:${stColor};font-weight:600">${esc(st || '–')}</td></tr>`;
+          return `<tr><td style="white-space:pre">${esc(fmtDateTime(r.rechargeDate))}</td><td style="white-space:normal;word-break:break-all;max-width:140px">${fmtToken(r.tokenNo || r.orderId || '')}</td><td style="font-weight:600">${fmtBdt(total)}</td><td>${fmtBdt(ea)}</td><td>${fmtUnits(r.energyUnit)}</td><td>${fmtBdt(Number(r.meterRent) || 0)}</td><td>${fmtBdt(Number(r.demandCharge) || 0)}</td><td>${fmtBdt(Number(r.vat) || 0)}</td><td>${fmtBdt(Number(r.subsidy) || 0)}</td><td style="color:${stColor};font-weight:600">${esc(st || '–')}</td></tr>`;
         }).join('')}
       </tbody></table></div>`
       : `<p class="muted">${esc(t('detail.recharge_empty'))}</p>`}
@@ -1895,7 +1895,7 @@ function renderHistory(hist) {
           const st = r.orderStatus || r.status || r.rechargeStatus || '';
           const stLow = String(st).toLowerCase();
           const stColor = stLow.includes('success') ? 'var(--success)' : (stLow.includes('fail') ? '#ff6b6b' : 'inherit');
-          return `<tr><td style="white-space:pre-line">${esc(fmtDateTime(r.rechargeDate))}</td><td style="white-space:normal;word-break:break-all;max-width:140px">${fmtToken(tokenDisplay)}</td><td style="font-weight:600">${fmtBdt(total)}</td><td>${fmtBdt(ea)}</td><td>${fmtUnits(descoTakaToKwh(ea))}</td><td>${money(rent)}</td><td>${money(dem)}</td><td>${money(vatV)}</td><td>${money(reb)}</td><td style="color:${stColor};font-weight:600">${esc(st || '–')}</td></tr>`;
+          return `<tr><td style="white-space:pre">${esc(fmtDateTime(r.rechargeDate))}</td><td style="white-space:normal;word-break:break-all;max-width:140px">${fmtToken(tokenDisplay)}</td><td style="font-weight:600">${fmtBdt(total)}</td><td>${fmtBdt(ea)}</td><td>${fmtUnits(descoTakaToKwh(ea))}</td><td>${money(rent)}</td><td>${money(dem)}</td><td>${money(vatV)}</td><td>${money(reb)}</td><td style="color:${stColor};font-weight:600">${esc(st || '–')}</td></tr>`;
         }).join('')}
       </tbody></table></div>`
       : `<p class="muted">${esc(t('detail.recharge_empty'))}</p>`}
